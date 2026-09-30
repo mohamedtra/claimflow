@@ -1,0 +1,15 @@
+title = "ClaimFlow"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Secrets de démonstration, utilisés uniquement dans l'environnement local Docker Compose."
+paths = [
+  '''infra/docker/keycloak/claimflow-realm\.json''',
+  '''infra/docker/\.env\.example''',
+  '''infra/docker/docker-compose\.yml''',
+  '''infra/docker/postgres/init\.sql''',
+  '''api/src/main/resources/application-local\.yml''',
+  '''api/src/test/resources/db/roles-de-test\.sql''',
+]

@@ -1,0 +1,6 @@
+# Propriétaire par défaut : toute pull request lui est soumise.
+*                         @OWNER
+# Décisions d'architecture et contrat d'API : relecture attentive exigée.
+/docs/adr/                @OWNER
+/docs/openapi/            @OWNER
+/api/src/main/resources/db/migration/ @OWNER

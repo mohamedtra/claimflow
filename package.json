@@ -1,0 +1,17 @@
+{
+  "name": "claimflow",
+  "private": true,
+  "description": "Outillage transverse du dépôt : messages de commit et contrat d'API",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "lint:api": "spectral lint docs/openapi/claimflow.yaml --fail-severity=warn",
+    "lint:commits": "commitlint --last --verbose"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "21.2.3",
+    "@commitlint/config-conventional": "21.2.3",
+    "@stoplight/spectral-cli": "6.16.3"
+  }
+}

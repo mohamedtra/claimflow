@@ -1,0 +1,19 @@
+name: Enabler
+description: Un travail technique sans utilisateur direct
+title: "EN-XX · "
+labels: ["type:enabler"]
+body:
+  - type: textarea
+    id: objectif
+    attributes:
+      label: Objectif
+      description: Ce que ce travail rend possible, et pour quelles US
+    validations:
+      required: true
+  - type: textarea
+    id: termine
+    attributes:
+      label: Critères de fin
+      description: Vérifiables, idéalement par la CI
+    validations:
+      required: true

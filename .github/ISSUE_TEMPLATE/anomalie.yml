@@ -1,0 +1,35 @@
+name: Anomalie
+description: Un comportement différent de ce qui est attendu
+title: "BUG-XX · "
+labels: ["type:bug"]
+body:
+  - type: dropdown
+    id: severite
+    attributes:
+      label: Sévérité
+      options:
+        - Bloquante (parcours critique impossible ou données corrompues)
+        - Majeure (fonction dégradée, sans contournement)
+        - Mineure (contournement possible)
+        - Cosmétique
+    validations:
+      required: true
+  - type: input
+    id: environnement
+    attributes:
+      label: Environnement et version
+      placeholder: rct · v0.2.0-rc.1
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Étapes pour reproduire
+    validations:
+      required: true
+  - type: textarea
+    id: attendu
+    attributes:
+      label: Résultat attendu et résultat obtenu
+    validations:
+      required: true
