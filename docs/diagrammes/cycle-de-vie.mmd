@@ -1,0 +1,22 @@
+stateDiagram-v2
+    [*] --> DECLARE : Assuré déclare
+    DECLARE --> EN_INSTRUCTION : Recevabilité OK
+    DECLARE --> REFUSE : Hors garantie / hors délai
+    EN_INSTRUCTION --> EN_ATTENTE_PIECES : Pièces manquantes
+    EN_ATTENTE_PIECES --> EN_INSTRUCTION : Pièces reçues
+    EN_ATTENTE_PIECES --> CLASSE_SANS_SUITE : Sans réponse 60 j
+    EN_INSTRUCTION --> EN_EXPERTISE : Montant estimé > seuil
+    EN_EXPERTISE --> EN_INSTRUCTION : Rapport déposé
+    EN_INSTRUCTION --> PROPOSITION : Indemnité calculée
+    PROPOSITION --> EN_VALIDATION : Montant > seuil de validation
+    EN_VALIDATION --> PROPOSITION : Rejetée par le responsable
+    EN_VALIDATION --> OFFRE_ENVOYEE : Validée
+    PROPOSITION --> OFFRE_ENVOYEE : Sous le seuil
+    OFFRE_ENVOYEE --> ACCEPTEE : Acceptée par l'assuré
+    OFFRE_ENVOYEE --> EN_INSTRUCTION : Contestée par l'assuré
+    ACCEPTEE --> INDEMNISE : Paiement émis
+    INDEMNISE --> CLOS
+    REFUSE --> CLOS
+    CLASSE_SANS_SUITE --> CLOS
+    CLOS --> EN_INSTRUCTION : Réouverture (≤ 2 ans)
+    CLOS --> [*]

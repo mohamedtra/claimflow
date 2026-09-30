@@ -1,0 +1,70 @@
+classDiagram
+    direction LR
+    class Sinistre {
+        SinistreId id
+        NumeroSinistre numero
+        ContratId contrat
+        TypeGarantie garantie
+        LocalDate dateSurvenance
+        LocalDate dateConnaissance
+        Montant montantEstime
+        Statut statut
+        GestionnaireId gestionnaire
+        Echeances echeances
+        Set~Drapeau~ drapeaux
+        long version
+        +accepterRecevabilite()
+        +refuser(motif)
+        +demanderPieces(pieces)
+        +passerEnExpertise()
+        +rapportRecu()
+        +proposer(montant)
+        +envoyerProposition(montant, seuil)
+        +accepterOffre()
+        +contesterOffre(motif)
+        +enregistrerPaiement()
+        +clore()
+        +rouvrir(aujourdhui)
+    }
+    class Echeances {
+        LocalDate accuseReception
+        LocalDate decision
+        +estEnRetard(aujourdhui) boolean
+    }
+    class Montant {
+        BigDecimal valeur
+        +plus(Montant) Montant
+        +moins(Montant) Montant
+        +appliquerTaux(Taux) Montant
+    }
+    class MissionExpertise {
+        MissionId id
+        SinistreId sinistre
+        ExpertId expert
+        List~LigneChiffrage~ chiffrage
+        boolean depose
+        +deposerRapport()
+    }
+    class PropositionIndemnite {
+        PropositionId id
+        SinistreId sinistre
+        List~LigneCalcul~ lignes
+        Montant montant
+        UtilisateurId auteur
+        UtilisateurId valideur
+        +valider(par)
+        +rejeter(par, motif)
+    }
+    class Piece {
+        PieceId id
+        SinistreId sinistre
+        TypeMime typeDetecte
+        long taille
+        Empreinte sha256
+        StatutAnalyse analyse
+    }
+    Sinistre *-- Echeances
+    Sinistre *-- Montant
+    MissionExpertise ..> Sinistre : sinistreId
+    PropositionIndemnite ..> Sinistre : sinistreId
+    Piece ..> Sinistre : sinistreId

@@ -1,0 +1,81 @@
+erDiagram
+    ASSURE ||--o{ CONTRAT : souscrit
+    CONTRAT ||--|{ GARANTIE : comprend
+    SINISTRE }o..|| CONTRAT : "contrat_id sans FK"
+    SINISTRE ||..o{ PIECE : "sinistre_id sans FK"
+    SINISTRE ||..o{ MISSION_EXPERTISE : "sinistre_id sans FK"
+    MISSION_EXPERTISE ||--o{ LIGNE_CHIFFRAGE : contient
+    SINISTRE ||..o{ PROPOSITION : "sinistre_id sans FK"
+    PROPOSITION ||--|{ LIGNE_CALCUL : detaille
+    ASSURE {
+        uuid id PK
+        varchar nom
+        varchar email
+    }
+    CONTRAT {
+        uuid id PK
+        varchar numero UK
+        uuid assure_id FK
+        date debut
+        date fin
+    }
+    GARANTIE {
+        uuid id PK
+        uuid contrat_id FK
+        varchar type
+        numeric plafond
+        numeric franchise
+        numeric taux_vetuste
+    }
+    SINISTRE {
+        uuid id PK
+        varchar numero UK
+        uuid contrat_id
+        uuid assure_id
+        varchar garantie
+        date date_survenance
+        varchar statut
+        uuid gestionnaire_id
+        date echeance_decision
+        numeric montant_estime
+        bigint version
+    }
+    PIECE {
+        uuid id PK
+        uuid sinistre_id
+        varchar type_detecte
+        bigint taille
+        char sha256
+        varchar cle_stockage
+        varchar statut_analyse
+    }
+    MISSION_EXPERTISE {
+        uuid id PK
+        uuid sinistre_id
+        uuid expert_id
+        timestamptz rendez_vous
+        timestamptz depose_le
+    }
+    LIGNE_CHIFFRAGE {
+        uuid id PK
+        uuid mission_id FK
+        varchar poste
+        numeric quantite
+        numeric prix_unitaire
+        numeric taux_vetuste
+    }
+    PROPOSITION {
+        uuid id PK
+        uuid sinistre_id
+        numeric montant
+        varchar statut
+        uuid propose_par
+        uuid valide_par
+        bigint version
+    }
+    LIGNE_CALCUL {
+        uuid id PK
+        uuid proposition_id FK
+        varchar poste
+        numeric montant
+    }

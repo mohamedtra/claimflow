@@ -1,0 +1,21 @@
+flowchart TB
+    nav(["Navigateur"])
+    subgraph perimetre["Périmètre ClaimFlow, un seul domaine HTTPS"]
+        spa["SPA Vue 3 : fichiers statiques"]
+        bff["BFF : Spring Cloud Gateway Server MVC"]
+        api["API : Spring Boot + Spring Modulith, réseau privé"]
+        db[("PostgreSQL : un schéma par module")]
+        obj[("Stockage objet : MinIO puis S3")]
+        av["ClamAV : analyse antivirus"]
+        kc["Keycloak"]
+    end
+    nav -->|"pages et scripts"| spa
+    nav -->|"/api/* avec cookie de session"| bff
+    bff -->|"code + PKCE"| kc
+    bff -->|"Bearer JWT, relais du jeton"| api
+    bff -->|"sessions, Spring Session JDBC"| db
+    api -->|"clés JWKS en cache"| kc
+    api --> db
+    api -->|"écrit après contrôle"| obj
+    api --> av
+    nav -.->|"lecture par URL présignée de 60 s"| obj

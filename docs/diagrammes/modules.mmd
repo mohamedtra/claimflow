@@ -1,0 +1,18 @@
+flowchart LR
+    document["document"]
+    expertise["expertise"]
+    indemnisation["indemnisation"]
+    fraude["fraude (Could)"]
+    sinistre["sinistre"]
+    contrat["contrat"]
+    parametrage["parametrage"]
+    document --> sinistre
+    expertise --> sinistre
+    indemnisation --> expertise
+    indemnisation --> sinistre
+    indemnisation --> contrat
+    indemnisation --> parametrage
+    fraude -.-> sinistre
+    fraude -.-> contrat
+    sinistre --> contrat
+    sinistre --> parametrage

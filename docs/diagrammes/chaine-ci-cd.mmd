@@ -1,0 +1,14 @@
+flowchart LR
+    subgraph pr["À chaque pull request"]
+        a1["Format, lint, messages de commit"] --> a2["Tests unitaires et d'architecture"] --> a3["Tests d'intégration Testcontainers"] --> a4["Sonar, dépendances, secrets, contrat d'API"] --> a5["Images Docker et scan"] --> a6["Parcours E2E sur environnement éphémère"]
+    end
+    subgraph main["Fusion sur main"]
+        b1["Image publiée, identifiée par son empreinte"] --> b2["Déploiement automatique en dev"] --> b3["Tests de fumée"]
+    end
+    subgraph rc["Tag vX.Y.Z-rc.N"]
+        c1["Même image en rct"] --> c2["E2E, charge, scan de sécurité"] --> c3["Recette et PV go ou no-go"]
+    end
+    subgraph rel["Tag vX.Y.Z"]
+        d1["Approbation manuelle"] --> d2["Déploiement progressif en prod"] --> d3["Tests de fumée, retour arrière automatique"]
+    end
+    pr --> main --> rc --> rel

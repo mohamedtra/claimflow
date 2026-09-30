@@ -1,0 +1,19 @@
+flowchart LR
+    assure(["Assuré"])
+    gest(["Gestionnaire et responsable"])
+    expert(["Expert externe"])
+    admin(["Administrateur"])
+    cf["ClaimFlow"]
+    kc["Keycloak : identité et SSO"]
+    sous["SI de souscription"]
+    mail["Service d'e-mail"]
+    pay["Système de paiement (simulé)"]
+    assure -->|"déclare, dépose, suit"| cf
+    gest -->|"instruit, valide, pilote"| cf
+    expert -->|"dépose ses rapports"| cf
+    admin -->|"paramètre, audite"| cf
+    cf -->|"OIDC"| kc
+    sous -->|"export quotidien des contrats"| cf
+    cf -->|"notifications"| mail
+    cf -->|"ordres de virement"| pay
+    pay -->|"retour de statut"| cf

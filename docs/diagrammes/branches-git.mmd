@@ -1,0 +1,13 @@
+gitGraph
+    commit id: "v0.1.0"
+    branch feat-US-05
+    commit id: "feat(sinistre) declaration"
+    commit id: "test(sinistre) RG-01"
+    checkout main
+    merge feat-US-05 id: "US-05 squash"
+    branch fix-BUG-03
+    commit id: "fix(indemnisation) arrondi"
+    checkout main
+    merge fix-BUG-03 id: "BUG-03 squash"
+    commit id: "rc" tag: "v0.2.0-rc.1"
+    commit id: "release" tag: "v0.2.0"

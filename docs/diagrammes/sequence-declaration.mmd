@@ -1,0 +1,25 @@
+sequenceDiagram
+    autonumber
+    actor A as Assurée
+    participant V as SPA Vue
+    participant B as BFF
+    participant S as API, module sinistre
+    participant C as module contrat
+    participant AU as module audit
+    participant DB as PostgreSQL
+    participant N as module notification
+    A->>V: Valide sa déclaration
+    V->>B: POST /api/v1/sinistres, cookie + en-tête CSRF + Idempotency-Key
+    B->>S: Même requête avec Authorization Bearer JWT
+    S->>S: Vérifie le JWT : signature, émetteur, audience, expiration
+    S->>C: Le contrat couvre-t-il cette garantie à cette date ?
+    C-->>S: Oui, plafond 8 000 €, franchise 300 €
+    S->>S: RG-01 délai, RG-07 affectation, calcul des échéances
+    S->>DB: INSERT sinistre
+    S->>AU: SinistreDeclare, écouteur synchrone
+    AU->>DB: INSERT entree_audit dans la même transaction
+    S->>DB: COMMIT, événement inscrit au registre de publication
+    S-->>B: 201 Created + Location
+    B-->>V: 201 Created
+    S--)N: SinistreDeclare après commit, asynchrone
+    N->>N: Envoie l'accusé de réception (RG-08)
