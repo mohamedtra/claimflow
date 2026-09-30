@@ -1,0 +1,45 @@
+# Configuration commune. Les valeurs propres à chaque environnement (URL, comptes, secrets) sont
+# fournies par variables d'environnement : aucune valeur de production dans le dépôt.
+spring:
+  application:
+    name: claimflow-api
+  datasource:
+    url: ${DB_URL:}
+    username: ${DB_USER:}
+    password: ${DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    # Les migrations s'exécutent avec le compte propriétaire (SPRING_FLYWAY_USER / _PASSWORD) ;
+    # l'application tourne avec claimflow_app, sans droit de structure (V9__droits.sql).
+    locations: classpath:db/migration
+  modulith:
+    events:
+      jdbc:
+        # La table event_publication est créée par la migration V10, jamais par l'application.
+        schema-initialization:
+          enabled: false
+      republish-outstanding-events-on-restart: true
+
+server:
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: true
+
+info:
+  application:
+    nom: ClaimFlow
+    version: '@project.version@'

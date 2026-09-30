@@ -1,0 +1,12 @@
+# Profil « local » : poste du développeur, avec infra/docker/docker-compose.yml.
+# Mots de passe de développement uniquement (infra/docker/postgres/init.sql).
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/claimflow
+    username: claimflow_app
+    password: claimflow-app-dev
+  flyway:
+    user: claimflow
+    password: claimflow-dev
+    # Le jeu de démonstration n'est chargé qu'ici, jamais en rct ni en prod.
+    locations: classpath:db/migration,classpath:db/demo
