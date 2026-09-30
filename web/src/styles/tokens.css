@@ -1,0 +1,50 @@
+/* Tokens du design system ClaimFlow (maquette v1). Toute couleur passe par ces variables. */
+:root {
+  --brand-900: #07343d;
+  --brand-700: #0b4f5c;
+  --brand-600: #0f6b7a;
+  --brand-500: #178a9a;
+  --brand-200: #b6dde2;
+  --brand-100: #ddf0f2;
+  --brand-50: #eff8f9;
+  --amber-500: #e09a12;
+
+  --n-900: #152229;
+  --n-800: #23333b;
+  --n-700: #3a4b54;
+  --n-600: #52646d;
+  --n-500: #6b7c85;
+  --n-300: #c9d3d8;
+  --n-200: #e1e7ea;
+  --n-100: #eff3f5;
+  --n-50: #f7f9fa;
+  --white: #ffffff;
+
+  --success: #1f7a4d;
+  --success-bg: #e3f3e9;
+  --danger: #b42318;
+  --danger-bg: #fde8e6;
+
+  --f-display: 'IBM Plex Sans Condensed', 'Arial Narrow', system-ui, sans-serif;
+  --f-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+
+  --r-md: 6px;
+  --r-lg: 10px;
+  --sh-1: 0 1px 2px rgb(21 34 41 / 6%), 0 1px 1px rgb(21 34 41 / 4%);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--n-50);
+  color: var(--n-900);
+  font-family: var(--f-body);
+  font-size: 14px;
+  line-height: 1.5;
+}
