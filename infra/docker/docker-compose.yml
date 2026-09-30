@@ -1,0 +1,96 @@
+# Environnement local ClaimFlow (section 3.11). Toutes les valeurs sont des valeurs de développement.
+#   docker compose up -d                 infrastructure seule (API et SPA lancées depuis l'IDE)
+#   docker compose --profile app up -d   pile complète en conteneurs
+name: claimflow
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres-dev}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.5
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak-dev
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_HTTP_PORT: "8180"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8180:8180"
+    volumes:
+      - ./keycloak/claimflow-realm.json:/opt/keycloak/data/import/claimflow-realm.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Stockage objet compatible S3. Les images officielles MinIO ne sont plus publiées depuis
+  # octobre 2025 : on utilise l'image gratuite maintenue par Chainguard (ADR-008).
+  stockage:
+    image: cgr.dev/chainguard/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${STOCKAGE_UTILISATEUR:-claimflow}
+      MINIO_ROOT_PASSWORD: ${STOCKAGE_MOT_DE_PASSE:-claimflow-dev}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - stockage-data:/data
+
+  mailpit:
+    image: axllent/mailpit:v1.31.1
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  clamav:
+    image: clamav/clamav:1.4
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamav-signatures:/var/lib/clamav
+
+  api:
+    profiles: ["app"]
+    build:
+      context: ../..
+      dockerfile: api/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/claimflow
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    profiles: ["app"]
+    build:
+      context: ../../web
+    ports:
+      - "5173:8080"
+    depends_on:
+      - api
+
+volumes:
+  postgres-data:
+  stockage-data:
+  clamav-signatures:

@@ -1,0 +1,207 @@
+{
+  "realm": "claimflow",
+  "displayName": "ClaimFlow",
+  "enabled": true,
+  "sslRequired": "external",
+  "internationalizationEnabled": true,
+  "supportedLocales": [
+    "fr"
+  ],
+  "defaultLocale": "fr",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "bruteForceProtected": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "roles": {
+    "realm": [
+      {
+        "name": "ASSURE",
+        "description": "Assuré : ses dossiers et contrats"
+      },
+      {
+        "name": "GESTIONNAIRE",
+        "description": "Gestionnaire : instruit son portefeuille"
+      },
+      {
+        "name": "EXPERT",
+        "description": "Expert externe : ses missions"
+      },
+      {
+        "name": "RESPONSABLE",
+        "description": "Responsable sinistres : valide et pilote son équipe"
+      },
+      {
+        "name": "ADMIN",
+        "description": "Administrateur : paramètres et audit"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "claimflow-bff",
+      "name": "ClaimFlow BFF",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "claimflow-bff-local",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8081/login/oauth2/code/keycloak"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience-claimflow-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "claimflow-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "claimflow-api",
+      "name": "ClaimFlow API (audience)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "claimflow-api-local",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "id": "5b1f2c3d-0001-4a00-8000-00000000c1a1",
+      "username": "claire.martin",
+      "email": "claire.martin@exemple.fr",
+      "emailVerified": true,
+      "firstName": "Claire",
+      "lastName": "Martin",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ASSURE"
+      ]
+    },
+    {
+      "id": "5b1f2c3d-0002-4a00-8000-00000000c1a2",
+      "username": "julien.moreau",
+      "email": "julien.moreau@exemple.fr",
+      "emailVerified": true,
+      "firstName": "Julien",
+      "lastName": "Moreau",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "GESTIONNAIRE"
+      ]
+    },
+    {
+      "id": "5b1f2c3d-0003-4a00-8000-00000000c1a3",
+      "username": "amelie.roux",
+      "email": "amelie.roux@exemple.fr",
+      "emailVerified": true,
+      "firstName": "Amélie",
+      "lastName": "Roux",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "GESTIONNAIRE"
+      ]
+    },
+    {
+      "id": "5b1f2c3d-0004-4a00-8000-00000000c1a4",
+      "username": "nadia.benali",
+      "email": "nadia.benali@exemple.fr",
+      "emailVerified": true,
+      "firstName": "Nadia",
+      "lastName": "Benali",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "EXPERT"
+      ]
+    },
+    {
+      "id": "5b1f2c3d-0005-4a00-8000-00000000c1a5",
+      "username": "sophie.laurent",
+      "email": "sophie.laurent@exemple.fr",
+      "emailVerified": true,
+      "firstName": "Sophie",
+      "lastName": "Laurent",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "RESPONSABLE"
+      ]
+    },
+    {
+      "id": "5b1f2c3d-0006-4a00-8000-00000000c1a6",
+      "username": "karim.haddad",
+      "email": "karim.haddad@exemple.fr",
+      "emailVerified": true,
+      "firstName": "Karim",
+      "lastName": "Haddad",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ADMIN"
+      ]
+    }
+  ]
+}
