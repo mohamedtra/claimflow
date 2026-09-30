@@ -1,0 +1,44 @@
+id;epic;recit;priorite;points;reference;release
+EN-01;EP-01;Initialiser le monorepo, les conventions et la protection de la branche main;Must;2;—;R0
+EN-02;EP-01;Pipeline CI : build, tests, qualité, sécurité, images Docker;Must;5;3.10;R0
+EN-03;EP-01;Environnement local complet en une commande (Docker Compose);Must;3;2.3;R0
+EN-04;EP-01;Contrat OpenAPI complet, génération des interfaces Spring et du client TypeScript;Must;5;2.7;R0
+EN-05;EP-01;Migrations Flyway V1 des schémas de modules, testées avec Testcontainers;Must;3;2.8;R0
+EN-06;EP-01;Tests d'architecture et règles écrites pour l'assistant IA;Must;2;2.4;R0
+US-01;EP-02;En tant qu'assuré, je veux me connecter à mon espace afin de suivre mes dossiers;Must;5;Écran 01;R1
+US-02;EP-02;En tant que collaborateur, je veux me connecter par SSO avec un second facteur afin d'accéder à mon espace de travail;Must;3;Écran 01;R1
+US-03;EP-02;En tant qu'utilisateur, je ne vois que les dossiers de mon périmètre afin que les données restent confidentielles;Must;8;2.9;R1
+EN-07;EP-03;Importer chaque jour les contrats du SI de souscription;Must;5;2.2;R1
+US-04;EP-03;En tant qu'assuré, je veux consulter mes contrats et garanties afin de savoir ce qui est couvert;Must;2;Écran 02;R1
+US-05;EP-03;En tant qu'assuré, je veux déclarer un sinistre en ligne afin d'être indemnisé sans appeler;Must;8;Écran 03 · RG-01, RG-07;R1
+US-06;EP-05;En tant qu'assuré, je veux déposer mes pièces justificatives afin de compléter mon dossier;Must;8;Écran 03 · RG-12;R1
+US-07;EP-04;En tant que gestionnaire, je veux voir mes dossiers triés par échéance afin de traiter les plus urgents d'abord;Must;5;Écrans 05, 06;R1
+US-08;EP-04;En tant que gestionnaire, je veux retrouver un dossier par son numéro ou le nom de l'assuré;Should;3;Écran 06;R1
+US-09;EP-04;En tant que gestionnaire, je veux décider de la recevabilité d'un dossier;Must;3;Écran 07 · RG-02, RG-03;R1
+US-10;EP-04;En tant que gestionnaire, je veux demander des pièces complémentaires à l'assuré;Must;3;Écran 07;R1
+US-11;EP-03;En tant qu'assuré, je veux suivre l'avancement de mon dossier;Must;5;Écran 04;R1
+US-12;EP-04;En tant que gestionnaire, je veux être prévenu d'une modification concurrente;Must;3;Écran 09 · RG-13;R1
+US-13;EP-08;En tant qu'administrateur, je veux consulter le journal d'audit;Must;5;Écran 14 · RG-11;R1
+EN-08;EP-13;Environnement dev sur AWS (Terraform) et déploiement continu;Must;8;3.11;R2
+US-14;EP-06;En tant que gestionnaire, je veux missionner un expert;Must;3;Écran 07 · RG-04;R2
+US-15;EP-06;En tant qu'expert, je ne vois que mes missions et les informations utiles;Must;3;Écran 10;R2
+US-16;EP-06;En tant qu'expert, je veux rédiger et déposer mon rapport chiffré;Must;5;Écran 10;R2
+US-17;EP-07;En tant que gestionnaire, je veux calculer et proposer une indemnité;Must;5;Écran 08 · RG-05;R2
+US-18;EP-07;En tant que responsable, je veux valider ou rejeter les propositions au-delà du seuil;Must;5;Écran 11 · RG-06;R2
+US-19;EP-07;En tant qu'assuré, je veux accepter ou contester l'offre d'indemnisation;Must;5;Écran à ajouter · RG-14;R2
+US-20;EP-07;En tant que système, j'émets le virement et j'enregistre son retour;Must;5;2.2;R2
+US-21;EP-09;En tant qu'assuré, je reçois un e-mail aux moments clés du dossier;Should;5;RG-08;R2
+US-22;EP-09;En tant que gestionnaire, je suis alerté cinq jours avant une échéance;Should;3;RG-08;R2
+US-23;EP-04;En tant que système, je classe sans suite un dossier sans réponse depuis 60 jours;Should;2;1.3;R2
+US-24;EP-04;En tant que gestionnaire, je veux rouvrir un dossier clos;Should;2;RG-10;R2
+EN-09;EP-13;Environnement rct sur AWS, créé pour chaque campagne de recette;Must;5;3.11;R3
+EN-10;EP-12;Jeu d'un million de dossiers et campagne de performance chiffrée;Must;8;1.6;R3
+EN-11;EP-12;Métriques, traces, logs structurés et tableaux de bord;Must;5;Étape 8;R3
+US-25;EP-10;En tant que responsable, je veux suivre le stock, les délais et la charge de l'équipe;Should;8;Écran 12;R3
+US-26;EP-10;En tant que responsable, je veux réaffecter un dossier;Should;2;Écran 12;R3
+US-27;EP-11;En tant qu'administrateur, je veux modifier les seuils et les délais;Should;5;Écran 13;R3
+EN-12;EP-13;Environnement prod, promotion avec approbation et retour arrière;Must;5;3.11;R4
+EN-13;EP-02;Durcissement : en-têtes de sécurité, scan dynamique, revue OWASP Top 10;Must;5;Étape 5;R4
+EN-14;EP-13;Sauvegarde et restauration testées (RPO 24 h, RTO 4 h);Must;3;1.6;R4
+US-28;EP-03;En tant qu'assuré, je peux utiliser mon espace au clavier et au lecteur d'écran;Should;3;1.6;R4
+US-29;EP-14;En tant que gestionnaire, je vois les signaux de fraude à revoir;Could;5;RG-09;RX
