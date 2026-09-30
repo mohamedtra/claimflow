@@ -1,0 +1,30 @@
+extends: ["spectral:oas"]
+rules:
+  # Les transitions d'état sont des commandes POST explicites (ADR-004) : pas de PATCH.
+  pas-de-patch:
+    description: Les modifications passent par des commandes métier POST, jamais par PATCH (ADR-004).
+    severity: error
+    given: "$.paths[*]"
+    then:
+      field: patch
+      function: falsy
+  # Les montants sont des chaînes décimales (ADR-012), jamais des nombres.
+  montants-en-chaine:
+    description: "Un montant est une chaîne décimale (ADR-012) : utiliser #/components/schemas/Montant."
+    severity: error
+    resolved: false
+    given: "$.components.schemas[*].properties[?(@property.match(/^(montant|plafond|franchise|prixUnitaire|vetuste|dommageRetenu)/i))]"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required: ["$ref"]
+  operation-operationId-camel:
+    description: Les operationId sont en camelCase.
+    severity: error
+    given: "$.paths[*][*].operationId"
+    then:
+      function: casing
+      functionOptions:
+        type: camel

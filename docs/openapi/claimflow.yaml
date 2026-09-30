@@ -1,0 +1,1804 @@
+openapi: 3.0.3
+info:
+  title: API ClaimFlow
+  version: 1.0.0
+  description: |
+    API de gestion des sinistres de ClaimFlow.
+
+    Conventions (section 2.7 du dossier projet) :
+    - les transitions d'état sont des commandes `POST` explicites, jamais un `PATCH` du statut ;
+    - chaque commande transporte la `version` du dossier lue par le client (verrouillage optimiste, RG-13) ;
+    - les montants sont des chaînes décimales en euros (`"3876.00"`) ;
+    - les listes sont paginées par curseur ;
+    - les erreurs suivent RFC 9457 (`application/problem+json`) et citent la règle métier concernée.
+
+    Le navigateur n'appelle jamais cette API directement : il passe par le BFF, qui relaie le jeton
+    d'accès (ADR-003). Le point `GET /bff/utilisateur` appartient au BFF et n'est pas décrit ici.
+  contact:
+    name: Équipe ClaimFlow
+    url: https://github.com/OWNER/claimflow
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: http://localhost:8080
+    description: API en local (derrière le BFF à partir du sprint 1)
+security:
+  - jetonAcces: []
+tags:
+  - name: Contrats
+    description: Référentiel des contrats et garanties, en lecture seule.
+  - name: Sinistres
+    description: Déclaration, instruction et cycle de vie des dossiers.
+  - name: Pieces
+    description: Pièces justificatives, contrôlées avant stockage.
+  - name: Expertises
+    description: Missions confiées aux experts et rapports chiffrés.
+  - name: Indemnisation
+    description: Propositions, validation à quatre yeux et réponse de l'assuré à l'offre.
+  - name: Paiements
+    description: Retours du système de paiement.
+  - name: Pilotage
+    description: Indicateurs de l'équipe.
+  - name: Parametres
+    description: Seuils et délais appliqués par les règles de gestion.
+  - name: Audit
+    description: Journal immuable des actions.
+
+paths:
+  /api/v1/contrats:
+    get:
+      tags: [Contrats]
+      operationId: listerMesContrats
+      summary: Liste les contrats de l'assuré connecté
+      description: Réservé aux assurés. Renvoie les contrats actifs et échus depuis moins de deux ans.
+      responses:
+        '200':
+          description: Contrats de l'assuré
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Contrat'
+        '401':
+          $ref: '#/components/responses/NonAuthentifie'
+        '403':
+          $ref: '#/components/responses/Interdit'
+
+  /api/v1/sinistres:
+    post:
+      tags: [Sinistres]
+      operationId: declarerSinistre
+      summary: Déclare un sinistre
+      description: |
+        Crée un dossier au statut `DECLARE`. Marque la déclaration tardive (RG-01) et affecte un
+        gestionnaire (RG-07). L'en-tête `Idempotency-Key` évite les doublons en cas de double envoi.
+      parameters:
+        - $ref: '#/components/parameters/CleIdempotence'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeclarationSinistre'
+      responses:
+        '201':
+          description: Dossier créé
+          headers:
+            Location:
+              description: URL du dossier créé
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sinistre'
+        '400':
+          $ref: '#/components/responses/Invalide'
+        '401':
+          $ref: '#/components/responses/NonAuthentifie'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '422':
+          $ref: '#/components/responses/RegleMetierViolee'
+    get:
+      tags: [Sinistres]
+      operationId: rechercherSinistres
+      summary: Liste et recherche les dossiers visibles
+      description: |
+        Le périmètre dépend du rôle (section 2.9) : l'assuré voit ses dossiers, le gestionnaire son
+        portefeuille, le responsable son équipe, l'expert les dossiers de ses missions.
+        Tri par échéance de décision croissante, puis par date de déclaration décroissante.
+      parameters:
+        - name: texte
+          in: query
+          description: Numéro de dossier ou nom de l'assuré, même partiel
+          schema:
+            type: string
+            maxLength: 100
+        - name: statut
+          in: query
+          description: Un ou plusieurs statuts
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Statut'
+        - name: garantie
+          in: query
+          description: Type de garantie
+          schema:
+            $ref: '#/components/schemas/TypeGarantie'
+        - name: enRetard
+          in: query
+          description: Seulement les dossiers dont l'échéance de décision est dépassée
+          schema:
+            type: boolean
+        - $ref: '#/components/parameters/Curseur'
+        - $ref: '#/components/parameters/Limite'
+      responses:
+        '200':
+          description: Page de dossiers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageSinistres'
+        '400':
+          $ref: '#/components/responses/Invalide'
+        '401':
+          $ref: '#/components/responses/NonAuthentifie'
+
+  /api/v1/sinistres/{sinistreId}:
+    get:
+      tags: [Sinistres]
+      operationId: consulterSinistre
+      summary: Consulte un dossier
+      description: Pour un expert, seuls les champs utiles à l'expertise sont renseignés.
+      parameters:
+        - $ref: '#/components/parameters/SinistreId'
+      responses:
+        '200':
+          description: Dossier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sinistre'
+        '401':
+          $ref: '#/components/responses/NonAuthentifie'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+
+  /api/v1/sinistres/{sinistreId}/recevabilite:
+    post:
+      tags: [Sinistres]
+      operationId: deciderRecevabilite
+      summary: Accepte ou refuse la recevabilité d'un dossier déclaré
+      description: Acceptation si RG-02 et RG-03 sont satisfaites ; un refus exige un motif.
+      parameters:
+        - $ref: '#/components/parameters/SinistreId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionRecevabilite'
+      responses:
+        '200':
+          $ref: '#/components/responses/SinistreMisAJour'
+        '400':
+          $ref: '#/components/responses/Invalide'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+        '409':
+          $ref: '#/components/responses/ConflitDeVersion'
+        '422':
+          $ref: '#/components/responses/RegleMetierViolee'
+
+  /api/v1/sinistres/{sinistreId}/demandes-pieces:
+    post:
+      tags: [Sinistres]
+      operationId: demanderPieces
+      summary: Demande des pièces complémentaires à l'assuré
+      description: Le dossier passe au statut `EN_ATTENTE_PIECES` et l'assuré est notifié.
+      parameters:
+        - $ref: '#/components/parameters/SinistreId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DemandePieces'
+      responses:
+        '200':
+          $ref: '#/components/responses/SinistreMisAJour'
+        '400':
+          $ref: '#/components/responses/Invalide'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+        '409':
+          $ref: '#/components/responses/ConflitDeVersion'
+        '422':
+          $ref: '#/components/responses/RegleMetierViolee'
+
+  /api/v1/sinistres/{sinistreId}/reaffectation:
+    post:
+      tags: [Sinistres]
+      operationId: reaffecterSinistre
+      summary: Confie le dossier à un autre gestionnaire
+      description: Réservé au responsable de l'équipe.
+      parameters:
+        - $ref: '#/components/parameters/SinistreId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reaffectation'
+      responses:
+        '200':
+          $ref: '#/components/responses/SinistreMisAJour'
+        '400':
+          $ref: '#/components/responses/Invalide'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+        '409':
+          $ref: '#/components/responses/ConflitDeVersion'
+
+  /api/v1/sinistres/{sinistreId}/reouverture:
+    post:
+      tags: [Sinistres]
+      operationId: rouvrirSinistre
+      summary: Rouvre un dossier clos
+      description: Possible au plus deux ans après la clôture (RG-10).
+      parameters:
+        - $ref: '#/components/parameters/SinistreId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reouverture'
+      responses:
+        '200':
+          $ref: '#/components/responses/SinistreMisAJour'
+        '400':
+          $ref: '#/components/responses/Invalide'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+        '409':
+          $ref: '#/components/responses/ConflitDeVersion'
+        '422':
+          $ref: '#/components/responses/RegleMetierViolee'
+
+  /api/v1/sinistres/{sinistreId}/historique:
+    get:
+      tags: [Sinistres]
+      operationId: consulterHistorique
+      summary: Chronologie du dossier
+      description: Construite à partir du journal d'audit, du plus récent au plus ancien.
+      parameters:
+        - $ref: '#/components/parameters/SinistreId'
+        - $ref: '#/components/parameters/Curseur'
+        - $ref: '#/components/parameters/Limite'
+      responses:
+        '200':
+          description: Événements du dossier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageHistorique'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+
+  /api/v1/sinistres/{sinistreId}/pieces:
+    post:
+      tags: [Pieces]
+      operationId: deposerPiece
+      summary: Dépose une pièce justificative
+      description: |
+        Le type réel est vérifié sur le contenu, la taille est limitée à 10 Mo, puis le fichier est
+        analysé par l'antivirus (RG-12). La pièce n'est consultable qu'une fois jugée saine.
+      parameters:
+        - $ref: '#/components/parameters/SinistreId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [fichier]
+              properties:
+                fichier:
+                  type: string
+                  format: binary
+                categorie:
+                  $ref: '#/components/schemas/CategoriePiece'
+      responses:
+        '202':
+          description: Pièce reçue, analyse en cours
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Piece'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+        '413':
+          $ref: '#/components/responses/TropVolumineux'
+        '415':
+          $ref: '#/components/responses/TypeNonSupporte'
+    get:
+      tags: [Pieces]
+      operationId: listerPieces
+      summary: Liste les pièces d'un dossier
+      description: Toutes les pièces visibles par l'utilisateur, avec leur statut d'analyse.
+      parameters:
+        - $ref: '#/components/parameters/SinistreId'
+      responses:
+        '200':
+          description: Pièces du dossier
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Piece'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+
+  /api/v1/pieces/{pieceId}/contenu:
+    get:
+      tags: [Pieces]
+      operationId: telechargerPiece
+      summary: Télécharge une pièce
+      description: Redirige vers une URL présignée valable 60 secondes. La consultation est tracée.
+      parameters:
+        - $ref: '#/components/parameters/PieceId'
+      responses:
+        '302':
+          description: Redirection vers l'URL présignée
+          headers:
+            Location:
+              description: URL présignée du fichier
+              schema:
+                type: string
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+        '422':
+          $ref: '#/components/responses/RegleMetierViolee'
+
+  /api/v1/sinistres/{sinistreId}/missions:
+    post:
+      tags: [Expertises]
+      operationId: missionnerExpert
+      summary: Missionne un expert
+      description: Le dossier passe au statut `EN_EXPERTISE`. Obligatoire au-delà du seuil d'expertise (RG-04).
+      parameters:
+        - $ref: '#/components/parameters/SinistreId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreationMission'
+      responses:
+        '201':
+          description: Mission créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mission'
+        '400':
+          $ref: '#/components/responses/Invalide'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+        '409':
+          $ref: '#/components/responses/ConflitDeVersion'
+        '422':
+          $ref: '#/components/responses/RegleMetierViolee'
+
+  /api/v1/missions:
+    get:
+      tags: [Expertises]
+      operationId: listerMesMissions
+      summary: Liste les missions de l'expert connecté
+      description: Un expert ne voit que ses propres missions.
+      parameters:
+        - $ref: '#/components/parameters/Curseur'
+        - $ref: '#/components/parameters/Limite'
+      responses:
+        '200':
+          description: Missions de l'expert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageMissions'
+        '403':
+          $ref: '#/components/responses/Interdit'
+
+  /api/v1/missions/{missionId}/rapport:
+    put:
+      tags: [Expertises]
+      operationId: enregistrerBrouillonRapport
+      summary: Enregistre le brouillon du rapport
+      description: Remplace le brouillon. Impossible après le dépôt.
+      parameters:
+        - $ref: '#/components/parameters/MissionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrouillonRapport'
+      responses:
+        '200':
+          description: Mission à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mission'
+        '400':
+          $ref: '#/components/responses/Invalide'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+        '422':
+          $ref: '#/components/responses/RegleMetierViolee'
+
+  /api/v1/missions/{missionId}/rapport/depot:
+    post:
+      tags: [Expertises]
+      operationId: deposerRapport
+      summary: Dépose le rapport, de façon définitive
+      description: Le dossier revient au statut `EN_INSTRUCTION`. Le rapport n'est plus modifiable.
+      parameters:
+        - $ref: '#/components/parameters/MissionId'
+      responses:
+        '200':
+          description: Rapport déposé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mission'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+        '422':
+          $ref: '#/components/responses/RegleMetierViolee'
+
+  /api/v1/sinistres/{sinistreId}/propositions:
+    post:
+      tags: [Indemnisation]
+      operationId: creerProposition
+      summary: Calcule et crée la proposition d'indemnité
+      description: |
+        Indemnité = min(dommage retenu − vétusté ; plafond) − franchise, jamais négative (RG-05).
+        Exige un rapport d'expertise si l'estimation dépasse le seuil d'expertise (RG-04).
+      parameters:
+        - $ref: '#/components/parameters/SinistreId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreationProposition'
+      responses:
+        '201':
+          description: Proposition créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Proposition'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+        '409':
+          $ref: '#/components/responses/ConflitDeVersion'
+        '422':
+          $ref: '#/components/responses/RegleMetierViolee'
+
+  /api/v1/propositions/{propositionId}:
+    get:
+      tags: [Indemnisation]
+      operationId: consulterProposition
+      summary: Consulte une proposition ou une offre
+      description: L'assuré titulaire y consulte le détail de l'offre qui lui est faite.
+      parameters:
+        - $ref: '#/components/parameters/PropositionId'
+      responses:
+        '200':
+          $ref: '#/components/responses/PropositionMiseAJour'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+
+  /api/v1/propositions/{propositionId}/envoi:
+    post:
+      tags: [Indemnisation]
+      operationId: envoyerProposition
+      summary: Envoie la proposition
+      description: |
+        Jusqu'au seuil de double validation, l'offre part directement à l'assuré (`OFFRE_ENVOYEE`).
+        Au-delà, elle est soumise à un responsable (`EN_VALIDATION`, RG-06).
+      parameters:
+        - $ref: '#/components/parameters/PropositionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnvoiProposition'
+      responses:
+        '200':
+          $ref: '#/components/responses/PropositionMiseAJour'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+        '409':
+          $ref: '#/components/responses/ConflitDeVersion'
+        '422':
+          $ref: '#/components/responses/RegleMetierViolee'
+
+  /api/v1/validations:
+    get:
+      tags: [Indemnisation]
+      operationId: listerValidationsEnAttente
+      summary: Propositions en attente de validation
+      description: Réservé aux responsables ; limité à leur équipe.
+      parameters:
+        - $ref: '#/components/parameters/Curseur'
+        - $ref: '#/components/parameters/Limite'
+      responses:
+        '200':
+          description: Propositions à valider
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagePropositions'
+        '403':
+          $ref: '#/components/responses/Interdit'
+
+  /api/v1/propositions/{propositionId}/validation:
+    post:
+      tags: [Indemnisation]
+      operationId: validerProposition
+      summary: Valide une proposition au-delà du seuil
+      description: Le valideur doit être différent de l'auteur de la proposition (RG-06). L'offre part à l'assuré.
+      parameters:
+        - $ref: '#/components/parameters/PropositionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionValidation'
+      responses:
+        '200':
+          $ref: '#/components/responses/PropositionMiseAJour'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+        '409':
+          $ref: '#/components/responses/ConflitDeVersion'
+        '422':
+          $ref: '#/components/responses/RegleMetierViolee'
+
+  /api/v1/propositions/{propositionId}/rejet:
+    post:
+      tags: [Indemnisation]
+      operationId: rejeterProposition
+      summary: Rejette une proposition
+      description: Le commentaire est obligatoire ; la proposition revient au gestionnaire.
+      parameters:
+        - $ref: '#/components/parameters/PropositionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Rejet'
+      responses:
+        '200':
+          $ref: '#/components/responses/PropositionMiseAJour'
+        '400':
+          $ref: '#/components/responses/Invalide'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+        '409':
+          $ref: '#/components/responses/ConflitDeVersion'
+
+  /api/v1/propositions/{propositionId}/acceptation:
+    post:
+      tags: [Indemnisation]
+      operationId: accepterOffre
+      summary: L'assuré accepte l'offre
+      description: Le dossier passe au statut `ACCEPTEE` et l'ordre de virement est émis (RG-14).
+      parameters:
+        - $ref: '#/components/parameters/PropositionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReponseOffre'
+      responses:
+        '200':
+          $ref: '#/components/responses/PropositionMiseAJour'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+        '409':
+          $ref: '#/components/responses/ConflitDeVersion'
+        '422':
+          $ref: '#/components/responses/RegleMetierViolee'
+
+  /api/v1/propositions/{propositionId}/contestation:
+    post:
+      tags: [Indemnisation]
+      operationId: contesterOffre
+      summary: L'assuré conteste l'offre
+      description: Le motif est obligatoire. Le dossier revient au statut `EN_INSTRUCTION` (RG-14).
+      parameters:
+        - $ref: '#/components/parameters/PropositionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Contestation'
+      responses:
+        '200':
+          $ref: '#/components/responses/PropositionMiseAJour'
+        '400':
+          $ref: '#/components/responses/Invalide'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '404':
+          $ref: '#/components/responses/Introuvable'
+        '409':
+          $ref: '#/components/responses/ConflitDeVersion'
+        '422':
+          $ref: '#/components/responses/RegleMetierViolee'
+
+  /api/v1/paiements/retours:
+    post:
+      tags: [Paiements]
+      operationId: enregistrerRetourPaiement
+      summary: Reçoit le statut d'un ordre de virement
+      description: |
+        Appelé par le système de paiement. Authentifié par une signature HMAC-SHA256 du corps,
+        transmise dans l'en-tête `X-Signature`. Idempotent : un même retour peut être reçu deux fois.
+      security: []
+      parameters:
+        - name: X-Signature
+          in: header
+          required: true
+          description: HMAC-SHA256 du corps, encodé en hexadécimal
+          schema:
+            type: string
+            pattern: '^[0-9a-f]{64}$'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetourPaiement'
+      responses:
+        '204':
+          description: Retour enregistré
+        '400':
+          $ref: '#/components/responses/Invalide'
+        '401':
+          $ref: '#/components/responses/NonAuthentifie'
+
+  /api/v1/pilotage/indicateurs:
+    get:
+      tags: [Pilotage]
+      operationId: consulterIndicateurs
+      summary: Indicateurs de l'équipe ou du portefeuille
+      description: Le gestionnaire voit son portefeuille, le responsable son équipe.
+      parameters:
+        - name: periodeSemaines
+          in: query
+          description: Profondeur de l'historique, en semaines
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 52
+            default: 8
+      responses:
+        '200':
+          description: Indicateurs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Indicateurs'
+        '403':
+          $ref: '#/components/responses/Interdit'
+
+  /api/v1/parametres:
+    get:
+      tags: [Parametres]
+      operationId: consulterParametres
+      summary: Consulte les paramètres métier
+      description: Réservé à l'administrateur.
+      responses:
+        '200':
+          $ref: '#/components/responses/ParametresActuels'
+        '403':
+          $ref: '#/components/responses/Interdit'
+    put:
+      tags: [Parametres]
+      operationId: modifierParametres
+      summary: Modifie les paramètres métier
+      description: S'applique aux nouveaux dossiers. Chaque modification est tracée.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Parametres'
+      responses:
+        '200':
+          $ref: '#/components/responses/ParametresActuels'
+        '400':
+          $ref: '#/components/responses/Invalide'
+        '403':
+          $ref: '#/components/responses/Interdit'
+        '409':
+          $ref: '#/components/responses/ConflitDeVersion'
+
+  /api/v1/audit:
+    get:
+      tags: [Audit]
+      operationId: consulterJournalAudit
+      summary: Consulte le journal d'audit
+      description: Réservé à l'administrateur. Du plus récent au plus ancien.
+      parameters:
+        - name: objetId
+          in: query
+          description: Identifiant de l'objet concerné (dossier, pièce, proposition…)
+          schema:
+            type: string
+            format: uuid
+        - name: acteurId
+          in: query
+          description: Identifiant de l'utilisateur
+          schema:
+            type: string
+        - name: action
+          in: query
+          description: Type d'action
+          schema:
+            type: string
+        - name: du
+          in: query
+          description: Début de la période (inclus)
+          schema:
+            type: string
+            format: date-time
+        - name: au
+          in: query
+          description: Fin de la période (exclue)
+          schema:
+            type: string
+            format: date-time
+        - $ref: '#/components/parameters/Curseur'
+        - $ref: '#/components/parameters/Limite'
+      responses:
+        '200':
+          description: Entrées du journal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageAudit'
+        '403':
+          $ref: '#/components/responses/Interdit'
+
+components:
+  securitySchemes:
+    jetonAcces:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Jeton d'accès émis par Keycloak et relayé par le BFF.
+
+  parameters:
+    SinistreId:
+      name: sinistreId
+      in: path
+      required: true
+      description: Identifiant technique du dossier (UUID v7)
+      schema:
+        type: string
+        format: uuid
+    PieceId:
+      name: pieceId
+      in: path
+      required: true
+      description: Identifiant de la pièce
+      schema:
+        type: string
+        format: uuid
+    MissionId:
+      name: missionId
+      in: path
+      required: true
+      description: Identifiant de la mission d'expertise
+      schema:
+        type: string
+        format: uuid
+    PropositionId:
+      name: propositionId
+      in: path
+      required: true
+      description: Identifiant de la proposition
+      schema:
+        type: string
+        format: uuid
+    Curseur:
+      name: curseur
+      in: query
+      description: Curseur opaque renvoyé par la page précédente
+      schema:
+        type: string
+    Limite:
+      name: limite
+      in: query
+      description: Nombre d'éléments par page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    CleIdempotence:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Clé unique par déclaration, générée par le client ; conservée 24 heures
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 64
+
+  responses:
+    SinistreMisAJour:
+      description: Dossier mis à jour
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Sinistre'
+    PropositionMiseAJour:
+      description: Proposition
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Proposition'
+    ParametresActuels:
+      description: Paramètres en vigueur
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Parametres'
+    Invalide:
+      description: Requête mal formée ou champ invalide
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Probleme'
+    NonAuthentifie:
+      description: Authentification absente ou invalide
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Probleme'
+    Interdit:
+      description: Action non permise pour cet utilisateur
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Probleme'
+    Introuvable:
+      description: Ressource inexistante, ou hors du périmètre d'un assuré
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Probleme'
+    ConflitDeVersion:
+      description: Le dossier a été modifié entre-temps (RG-13)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Probleme'
+          example:
+            type: https://api.claimflow.example/problemes/conflit-de-version
+            title: Le dossier a été modifié entre-temps
+            status: 409
+            detail: Version 7 attendue, la version actuelle est 8.
+            instance: /api/v1/sinistres/0192a3c4-7f1e-7b21-9c55-2f4e8d1a6b30/recevabilite
+            versionActuelle: 8
+    TropVolumineux:
+      description: Fichier de plus de 10 Mo (RG-12)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Probleme'
+    TypeNonSupporte:
+      description: Type de fichier refusé (RG-12)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Probleme'
+    RegleMetierViolee:
+      description: Règle métier ou transition refusée
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Probleme'
+          example:
+            type: https://api.claimflow.example/problemes/regle-metier
+            title: Rapport d'expertise requis
+            status: 422
+            detail: L'estimation dépasse 1 500,00 € ; une proposition exige un rapport d'expertise.
+            regle: RG-04
+
+  schemas:
+    Montant:
+      type: string
+      description: Montant en euros, deux décimales, point décimal (ADR-012)
+      pattern: '^\d{1,10}\.\d{2}$'
+      example: '3876.00'
+
+    Version:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Version du dossier ou de la proposition lue par le client (RG-13)
+
+    Statut:
+      type: string
+      description: Statut du dossier (section 1.3)
+      enum:
+        - DECLARE
+        - EN_INSTRUCTION
+        - EN_ATTENTE_PIECES
+        - EN_EXPERTISE
+        - PROPOSITION
+        - EN_VALIDATION
+        - OFFRE_ENVOYEE
+        - ACCEPTEE
+        - INDEMNISE
+        - REFUSE
+        - CLASSE_SANS_SUITE
+        - CLOS
+
+    TypeGarantie:
+      type: string
+      description: Garantie concernée par le sinistre
+      enum:
+        - DEGAT_DES_EAUX
+        - INCENDIE
+        - VOL
+        - BRIS_DE_GLACE
+        - TEMPETE
+        - AUTO_COLLISION
+        - AUTO_VANDALISME
+
+    Drapeau:
+      type: string
+      description: Signal posé sur un dossier
+      enum:
+        - DECLARATION_TARDIVE
+        - REVUE_FRAUDE
+
+    Adresse:
+      type: object
+      description: Adresse du lieu du sinistre
+      required: [ligne, codePostal, commune]
+      properties:
+        ligne:
+          type: string
+          maxLength: 200
+        codePostal:
+          type: string
+          pattern: '^\d{5}$'
+        commune:
+          type: string
+          maxLength: 100
+
+    Personne:
+      type: object
+      description: Personne citée dans un dossier
+      required: [id, nom]
+      properties:
+        id:
+          type: string
+        nom:
+          type: string
+
+    Garantie:
+      type: object
+      description: Garantie souscrite dans un contrat
+      required: [type, plafond, franchise, tauxVetuste]
+      properties:
+        type:
+          $ref: '#/components/schemas/TypeGarantie'
+        plafond:
+          $ref: '#/components/schemas/Montant'
+        franchise:
+          $ref: '#/components/schemas/Montant'
+        tauxVetuste:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Taux de vétusté appliqué, en pourcentage
+
+    Contrat:
+      type: object
+      description: Contrat d'assurance, issu du SI de souscription
+      required: [id, numero, type, libelle, debut, garanties]
+      properties:
+        id:
+          type: string
+          format: uuid
+        numero:
+          type: string
+          example: HAB-3391027
+        type:
+          type: string
+          enum: [HABITATION, AUTO]
+        libelle:
+          type: string
+          example: Multirisque habitation
+        debut:
+          type: string
+          format: date
+        fin:
+          type: string
+          format: date
+          nullable: true
+        garanties:
+          type: array
+          items:
+            $ref: '#/components/schemas/Garantie'
+
+    DeclarationSinistre:
+      type: object
+      description: Données saisies par l'assuré ou le gestionnaire pour déclarer un sinistre
+      required: [contratId, garantie, dateSurvenance, dateConnaissance, circonstances, lieu]
+      properties:
+        contratId:
+          type: string
+          format: uuid
+        garantie:
+          $ref: '#/components/schemas/TypeGarantie'
+        dateSurvenance:
+          type: string
+          format: date
+        dateConnaissance:
+          type: string
+          format: date
+        circonstances:
+          type: string
+          minLength: 20
+          maxLength: 4000
+        lieu:
+          $ref: '#/components/schemas/Adresse'
+        tiers:
+          type: string
+          maxLength: 500
+          nullable: true
+        montantEstime:
+          $ref: '#/components/schemas/Montant'
+
+    Sinistre:
+      type: object
+      description: Dossier de sinistre
+      required: [id, numero, version, statut, garantie, dateSurvenance, declareLe, drapeaux]
+      properties:
+        id:
+          type: string
+          format: uuid
+        numero:
+          type: string
+          example: SIN-2026-048213
+        version:
+          $ref: '#/components/schemas/Version'
+        statut:
+          $ref: '#/components/schemas/Statut'
+        contratId:
+          type: string
+          format: uuid
+        assure:
+          $ref: '#/components/schemas/Personne'
+        garantie:
+          $ref: '#/components/schemas/TypeGarantie'
+        dateSurvenance:
+          type: string
+          format: date
+        dateConnaissance:
+          type: string
+          format: date
+        declareLe:
+          type: string
+          format: date-time
+        circonstances:
+          type: string
+        lieu:
+          $ref: '#/components/schemas/Adresse'
+        tiers:
+          type: string
+          nullable: true
+        montantEstime:
+          $ref: '#/components/schemas/Montant'
+        gestionnaire:
+          $ref: '#/components/schemas/Personne'
+        echeanceDecision:
+          type: string
+          format: date
+          nullable: true
+        drapeaux:
+          type: array
+          items:
+            $ref: '#/components/schemas/Drapeau'
+        propositionEnCoursId:
+          type: string
+          format: uuid
+          nullable: true
+
+    SinistreResume:
+      type: object
+      description: Ligne de liste de dossiers
+      required: [id, numero, statut, garantie, assureNom, dateSurvenance, drapeaux]
+      properties:
+        id:
+          type: string
+          format: uuid
+        numero:
+          type: string
+        statut:
+          $ref: '#/components/schemas/Statut'
+        garantie:
+          $ref: '#/components/schemas/TypeGarantie'
+        assureNom:
+          type: string
+        commune:
+          type: string
+        dateSurvenance:
+          type: string
+          format: date
+        montantEstime:
+          $ref: '#/components/schemas/Montant'
+        echeanceDecision:
+          type: string
+          format: date
+          nullable: true
+        gestionnaireId:
+          type: string
+          nullable: true
+        drapeaux:
+          type: array
+          items:
+            $ref: '#/components/schemas/Drapeau'
+
+    PageSinistres:
+      type: object
+      description: Page de dossiers
+      required: [elements]
+      properties:
+        elements:
+          type: array
+          items:
+            $ref: '#/components/schemas/SinistreResume'
+        curseurSuivant:
+          type: string
+          nullable: true
+
+    DecisionRecevabilite:
+      type: object
+      description: Décision du gestionnaire sur la recevabilité
+      required: [decision, version]
+      properties:
+        decision:
+          type: string
+          enum: [ACCEPTEE, REFUSEE]
+        motif:
+          type: string
+          maxLength: 1000
+          description: Obligatoire si la décision est REFUSEE
+        version:
+          $ref: '#/components/schemas/Version'
+
+    DemandePieces:
+      type: object
+      description: Pièces demandées à l'assuré
+      required: [pieces, version]
+      properties:
+        pieces:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            maxLength: 200
+        message:
+          type: string
+          maxLength: 2000
+        version:
+          $ref: '#/components/schemas/Version'
+
+    Reaffectation:
+      type: object
+      description: Nouveau gestionnaire du dossier
+      required: [gestionnaireId, version]
+      properties:
+        gestionnaireId:
+          type: string
+        motif:
+          type: string
+          maxLength: 500
+        version:
+          $ref: '#/components/schemas/Version'
+
+    Reouverture:
+      type: object
+      description: Motif de réouverture
+      required: [motif, version]
+      properties:
+        motif:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        version:
+          $ref: '#/components/schemas/Version'
+
+    EvenementHistorique:
+      type: object
+      description: Événement de la chronologie d'un dossier
+      required: [horodatage, action]
+      properties:
+        horodatage:
+          type: string
+          format: date-time
+        acteur:
+          $ref: '#/components/schemas/Personne'
+        role:
+          type: string
+        action:
+          type: string
+        detail:
+          type: string
+
+    PageHistorique:
+      type: object
+      description: Page d'événements
+      required: [elements]
+      properties:
+        elements:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvenementHistorique'
+        curseurSuivant:
+          type: string
+          nullable: true
+
+    CategoriePiece:
+      type: string
+      description: Nature de la pièce
+      enum: [PHOTO, DEVIS, FACTURE, CONSTAT, RAPPORT_EXPERTISE, AUTRE]
+
+    Piece:
+      type: object
+      description: Pièce justificative
+      required: [id, nom, typeDetecte, taille, statutAnalyse, deposeeLe]
+      properties:
+        id:
+          type: string
+          format: uuid
+        nom:
+          type: string
+        categorie:
+          $ref: '#/components/schemas/CategoriePiece'
+        typeDetecte:
+          type: string
+          example: image/jpeg
+        taille:
+          type: integer
+          format: int64
+          description: Taille en octets
+        statutAnalyse:
+          type: string
+          enum: [EN_ANALYSE, SAINE, REJETEE]
+        deposeePar:
+          type: string
+          description: Rôle de la personne qui a déposé la pièce
+        deposeeLe:
+          type: string
+          format: date-time
+
+    CreationMission:
+      type: object
+      description: Expert à missionner
+      required: [expertId, version]
+      properties:
+        expertId:
+          type: string
+        version:
+          $ref: '#/components/schemas/Version'
+
+    LigneChiffrage:
+      type: object
+      description: Ligne du chiffrage de l'expert
+      required: [poste, quantite, prixUnitaire, tauxVetuste]
+      properties:
+        poste:
+          type: string
+          maxLength: 200
+        quantite:
+          type: string
+          pattern: '^\d{1,6}(\.\d{1,2})?$'
+          description: Quantité décimale
+          example: '22'
+        unite:
+          type: string
+          example: m²
+        prixUnitaire:
+          $ref: '#/components/schemas/Montant'
+        tauxVetuste:
+          type: integer
+          minimum: 0
+          maximum: 100
+        total:
+          $ref: '#/components/schemas/Montant'
+
+    Rapport:
+      type: object
+      description: Rapport d'expertise
+      required: [lignes, depose]
+      properties:
+        constats:
+          type: string
+        lignes:
+          type: array
+          items:
+            $ref: '#/components/schemas/LigneChiffrage'
+        depose:
+          type: boolean
+        deposeLe:
+          type: string
+          format: date-time
+          nullable: true
+
+    BrouillonRapport:
+      type: object
+      description: Contenu provisoire du rapport
+      required: [lignes]
+      properties:
+        constats:
+          type: string
+          maxLength: 8000
+        rendezVous:
+          type: string
+          format: date-time
+          nullable: true
+        lignes:
+          type: array
+          items:
+            $ref: '#/components/schemas/LigneChiffrage'
+
+    Mission:
+      type: object
+      description: Mission d'expertise
+      required: [id, sinistreId, sinistreNumero, statut]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sinistreId:
+          type: string
+          format: uuid
+        sinistreNumero:
+          type: string
+        garantie:
+          $ref: '#/components/schemas/TypeGarantie'
+        lieu:
+          $ref: '#/components/schemas/Adresse'
+        statut:
+          type: string
+          enum: [NOUVELLE, PLANIFIEE, RAPPORT_ATTENDU, DEPOSEE]
+        rendezVous:
+          type: string
+          format: date-time
+          nullable: true
+        rapport:
+          $ref: '#/components/schemas/Rapport'
+
+    PageMissions:
+      type: object
+      description: Page de missions
+      required: [elements]
+      properties:
+        elements:
+          type: array
+          items:
+            $ref: '#/components/schemas/Mission'
+        curseurSuivant:
+          type: string
+          nullable: true
+
+    CreationProposition:
+      type: object
+      description: Demande de calcul d'une proposition
+      required: [version]
+      properties:
+        version:
+          $ref: '#/components/schemas/Version'
+
+    LigneCalcul:
+      type: object
+      description: Ligne du détail de calcul de l'indemnité
+      required: [poste, source, montant]
+      properties:
+        poste:
+          type: string
+        source:
+          type: string
+          example: Rapport d'expertise
+        montant:
+          $ref: '#/components/schemas/Montant'
+
+    Proposition:
+      type: object
+      description: Proposition d'indemnité, puis offre faite à l'assuré
+      required: [id, sinistreId, version, statut, lignes, dommageRetenu, vetuste, plafond, franchise, montant]
+      properties:
+        id:
+          type: string
+          format: uuid
+        sinistreId:
+          type: string
+          format: uuid
+        version:
+          $ref: '#/components/schemas/Version'
+        statut:
+          type: string
+          enum: [BROUILLON, EN_VALIDATION, REJETEE, OFFRE_ENVOYEE, ACCEPTEE, CONTESTEE]
+        lignes:
+          type: array
+          items:
+            $ref: '#/components/schemas/LigneCalcul'
+        dommageRetenu:
+          $ref: '#/components/schemas/Montant'
+        vetuste:
+          $ref: '#/components/schemas/Montant'
+        plafond:
+          $ref: '#/components/schemas/Montant'
+        franchise:
+          $ref: '#/components/schemas/Montant'
+        montant:
+          $ref: '#/components/schemas/Montant'
+        proposeePar:
+          $ref: '#/components/schemas/Personne'
+        valideePar:
+          $ref: '#/components/schemas/Personne'
+        messageAssure:
+          type: string
+        offreEnvoyeeLe:
+          type: string
+          format: date-time
+          nullable: true
+        motifContestation:
+          type: string
+          nullable: true
+
+    PagePropositions:
+      type: object
+      description: Page de propositions
+      required: [elements]
+      properties:
+        elements:
+          type: array
+          items:
+            $ref: '#/components/schemas/Proposition'
+        curseurSuivant:
+          type: string
+          nullable: true
+
+    EnvoiProposition:
+      type: object
+      description: Envoi de la proposition
+      required: [version]
+      properties:
+        messageAssure:
+          type: string
+          maxLength: 2000
+        version:
+          $ref: '#/components/schemas/Version'
+
+    DecisionValidation:
+      type: object
+      description: Validation par un responsable
+      required: [version]
+      properties:
+        commentaire:
+          type: string
+          maxLength: 1000
+        version:
+          $ref: '#/components/schemas/Version'
+
+    Rejet:
+      type: object
+      description: Rejet motivé par un responsable
+      required: [commentaire, version]
+      properties:
+        commentaire:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        version:
+          $ref: '#/components/schemas/Version'
+
+    ReponseOffre:
+      type: object
+      description: Acceptation de l'offre par l'assuré
+      required: [version]
+      properties:
+        version:
+          $ref: '#/components/schemas/Version'
+
+    Contestation:
+      type: object
+      description: Contestation motivée de l'offre (RG-14)
+      required: [motif, version]
+      properties:
+        motif:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        version:
+          $ref: '#/components/schemas/Version'
+
+    RetourPaiement:
+      type: object
+      description: Statut d'un ordre de virement
+      required: [ordreId, propositionId, statut]
+      properties:
+        ordreId:
+          type: string
+        propositionId:
+          type: string
+          format: uuid
+        statut:
+          type: string
+          enum: [EXECUTE, REJETE]
+        executeLe:
+          type: string
+          format: date-time
+          nullable: true
+        motifRejet:
+          type: string
+          nullable: true
+
+    ChargeGestionnaire:
+      type: object
+      description: Charge d'un gestionnaire
+      required: [gestionnaire, total, sousCinqJours, enRetard]
+      properties:
+        gestionnaire:
+          $ref: '#/components/schemas/Personne'
+        total:
+          type: integer
+        sousCinqJours:
+          type: integer
+        enRetard:
+          type: integer
+
+    PointHebdomadaire:
+      type: object
+      description: Taux de décisions dans les délais pour une semaine
+      required: [semaine, tauxDansLesDelais]
+      properties:
+        semaine:
+          type: string
+          example: 2026-W39
+        tauxDansLesDelais:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+
+    Indicateurs:
+      type: object
+      description: Indicateurs de pilotage
+      required: [stockParStatut, enRetard, echeanceSousCinqJours, charge, historique]
+      properties:
+        stockParStatut:
+          type: object
+          additionalProperties:
+            type: integer
+        enRetard:
+          type: integer
+        echeanceSousCinqJours:
+          type: integer
+        delaiMoyenDecisionJours:
+          type: number
+          format: double
+        montantIndemniseMois:
+          $ref: '#/components/schemas/Montant'
+        charge:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChargeGestionnaire'
+        historique:
+          type: array
+          items:
+            $ref: '#/components/schemas/PointHebdomadaire'
+
+    Parametres:
+      type: object
+      description: Paramètres des règles de gestion
+      required:
+        - seuilExpertise
+        - seuilDoubleValidation
+        - delaiDeclarationJoursOuvres
+        - delaiDeclarationVolJoursOuvres
+        - delaiReouvertureAns
+        - delaiAccuseReceptionHeures
+        - delaiDecisionJours
+        - alerteAvantEcheanceJours
+        - delaiClassementSansSuiteJours
+        - delaiRelanceOffreJours
+        - fraudeSinistresSur12Mois
+        - fraudeDelaiApresSouscriptionJours
+        - piecesTailleMaxMo
+        - version
+      properties:
+        seuilExpertise:
+          $ref: '#/components/schemas/Montant'
+        seuilDoubleValidation:
+          $ref: '#/components/schemas/Montant'
+        delaiDeclarationJoursOuvres:
+          type: integer
+          minimum: 1
+        delaiDeclarationVolJoursOuvres:
+          type: integer
+          minimum: 1
+        delaiReouvertureAns:
+          type: integer
+          minimum: 1
+        delaiAccuseReceptionHeures:
+          type: integer
+          minimum: 1
+        delaiDecisionJours:
+          type: integer
+          minimum: 1
+        alerteAvantEcheanceJours:
+          type: integer
+          minimum: 1
+        delaiClassementSansSuiteJours:
+          type: integer
+          minimum: 1
+        delaiRelanceOffreJours:
+          type: integer
+          minimum: 1
+        fraudeSinistresSur12Mois:
+          type: integer
+          minimum: 1
+        fraudeDelaiApresSouscriptionJours:
+          type: integer
+          minimum: 1
+        piecesTailleMaxMo:
+          type: integer
+          minimum: 1
+          maximum: 50
+        version:
+          $ref: '#/components/schemas/Version'
+
+    EntreeAudit:
+      type: object
+      description: Entrée du journal d'audit
+      required: [id, horodatage, acteurId, acteurRole, action, objetType, objetId]
+      properties:
+        id:
+          type: integer
+          format: int64
+        horodatage:
+          type: string
+          format: date-time
+        acteurId:
+          type: string
+        acteurRole:
+          type: string
+        action:
+          type: string
+        objetType:
+          type: string
+        objetId:
+          type: string
+          format: uuid
+        avant:
+          type: object
+          nullable: true
+          additionalProperties: true
+        apres:
+          type: object
+          nullable: true
+          additionalProperties: true
+
+    PageAudit:
+      type: object
+      description: Page du journal d'audit
+      required: [elements]
+      properties:
+        elements:
+          type: array
+          items:
+            $ref: '#/components/schemas/EntreeAudit'
+        curseurSuivant:
+          type: string
+          nullable: true
+
+    Probleme:
+      type: object
+      description: Erreur au format RFC 9457 (Problem Details)
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        regle:
+          type: string
+          description: Règle de gestion concernée, par exemple RG-06
+          example: RG-06
+        versionActuelle:
+          type: integer
+          format: int64
+          description: Présent en cas de conflit de version
+        erreurs:
+          type: array
+          description: Détail des champs invalides
+          items:
+            type: object
+            required: [champ, message]
+            properties:
+              champ:
+                type: string
+              message:
+                type: string
