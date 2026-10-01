@@ -44,3 +44,12 @@ reprennent encore la syntaxe de Spring Boot 3 :
   dédiés (`org.testcontainers.postgresql.PostgreSQLContainer`).
 
 Ces points sont rappelés dans `AGENTS.md`.
+
+## Amendement du 01/10/2026 : premier passage de la CI
+
+Le scan Trivy des images a détecté des failles critiques :
+
+- Tomcat 11.0.24, embarqué par Spring Boot 4.1.1 : la propriété `tomcat.version` force la 11.0.25,
+  jusqu'à ce que Spring Boot l'intègre ;
+- nginx 1.28 et OpenSSL dans l'image du front : passage à nginx 1.30 (branche stable maintenue) et
+  application des mises à jour de sécurité Alpine à la construction.
