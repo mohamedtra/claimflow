@@ -24,3 +24,5 @@ coverage/
 .terraform/
 *.tfstate
 *.tfstate.*
+gitleaks.json
+maven.log

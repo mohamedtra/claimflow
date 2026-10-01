@@ -81,7 +81,12 @@ jobs:
           java-version: '25'
           cache: maven
       - name: Tests unitaires, d'architecture et d'intégration (Testcontainers)
-        run: mvn -B -f api/pom.xml verify
+        run: |
+          set -o pipefail
+          mvn -B -f api/pom.xml verify 2>&1 | tee maven.log
+      - name: Erreurs du build en annotations
+        if: failure()
+        run: .github/scripts/annoter-echecs.sh maven.log
       - name: Analyse SonarQube Cloud
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -134,10 +139,21 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+      # Gitleaks en conteneur : chaque fuite devient une annotation sur le fichier concerné.
       - name: Secrets (Gitleaks)
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest \
+            git /repo --config /repo/.gitleaks.toml --redact --exit-code 0 \
+            --report-format json --report-path /repo/gitleaks.json
+          python3 - <<'PY'
+          import json, sys
+          fuites = json.load(open('gitleaks.json')) or []
+          for f in fuites:
+              print(f"::error file={f['File']},line={f['StartLine']},title=Secret détecté ({f['RuleID']})::"
+                    f"Commit {f['Commit'][:8]} : {f['Description']}")
+          print(f"{len(fuites)} fuite(s) détectée(s)")
+          sys.exit(1 if fuites else 0)
+          PY
       - name: Dépendances vulnérables (Trivy)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
