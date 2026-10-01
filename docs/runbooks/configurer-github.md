@@ -1,48 +1,45 @@
 # Configurer GitHub pour ClaimFlow
 
-À faire une fois, à la création du dépôt. Durée : environ 20 minutes.
-Prérequis : [GitHub CLI](https://cli.github.com/) authentifié (`gh auth login`), avec la portée
-projet (`gh auth refresh -s project`).
+État au 01/10/2026 : le dépôt est en ligne, la CI est verte, et les étiquettes, les 11 jalons
+(un par sprint) et les 43 issues du backlog sont créés. Il reste quatre réglages que seul le
+propriétaire du dépôt peut faire.
 
-## 1. Créer le dépôt public et pousser le socle
+## 1. Réglages du dépôt, environnements et protection de main (une commande)
 
-```bash
-gh repo create mohamedtra/claimflow --public --description "Gestion des sinistres : Java 25, Spring Boot 4, Vue 3" --source . --push
-```
-
-## 2. Protéger la branche main
+Prérequis : [GitHub CLI](https://cli.github.com/) installé et authentifié (`gh auth login`).
 
 ```bash
-gh api repos/mohamedtra/claimflow/rulesets --method POST --input scripts/github/regles-main.json
+git clone https://github.com/mohamedtra/claimflow.git && cd claimflow
+scripts/github/configurer-parametres.sh mohamedtra/claimflow
 ```
 
-Effet : pull request obligatoire, fusion « squash » uniquement, historique linéaire, pas de
-suppression ni de force-push, et les sept contrôles de la CI doivent être verts.
+Le script est idempotent. Il applique :
+
+- fusion « squash » uniquement, suppression des branches fusionnées, sujets du dépôt ;
+- détection des secrets avec blocage au push, alertes de vulnérabilités ;
+- environnements `dev` (depuis main), `rct` (tags `vX.Y.Z-rc.N`) et `prod` (tags `vX.Y.Z`,
+  avec votre approbation obligatoire) ;
+- protection de main (`scripts/github/regles-main.json`) : pull request obligatoire, les sept
+  contrôles de la CI verts, historique linéaire, pas de force-push.
 
 > Les noms des contrôles exigés doivent correspondre aux noms des jobs de
 > `.github/workflows/ci.yml`. Si un job est renommé, mettre à jour `regles-main.json`.
 
-## 3. Étiquettes et backlog
+## 2. Tableau GitHub Projects (interface web, environ 5 minutes)
 
-```bash
-scripts/github/labels.sh mohamedtra/claimflow
-gh project create --owner mohamedtra --title "ClaimFlow"          # noter le numéro affiché
-scripts/github/importer-backlog.sh mohamedtra/claimflow <numéro>
-```
+1. https://github.com/users/mohamedtra/projects → **New project** → modèle **Board**, nom « ClaimFlow ».
+2. **Workflows** → activer **Auto-add to project** avec le filtre `repo:mohamedtra/claimflow is:issue`,
+   puis **Add items** → sélectionner toutes les issues du dépôt (les 43 existantes).
+3. Colonnes du champ **Status** : Backlog, Prête, En cours, En revue, En recette, Terminée ;
+   limite de 2 cartes sur « En cours ».
+4. Ajouter un champ **Points** (nombre) ; la valeur figure dans l'étiquette `points:*` de chaque issue.
+5. Ajouter une vue **Table** groupée par **Milestone** : chaque jalon est un sprint.
+6. Ajouter une vue **Roadmap** groupée par étiquette `release:*`.
 
-Dans le projet (interface web) :
-
-1. Ajouter un champ **Itération** : durée 2 semaines, première itération le lundi 5 octobre 2026.
-2. Ajouter un champ **Points** (nombre) et le renseigner depuis le titre des cartes.
-3. Créer une vue **Tableau** avec les colonnes : Backlog, Prête, En cours, En revue, En recette,
-   Terminée ; limiter « En cours » à 2 cartes.
-4. Créer une vue **Roadmap** groupée par étiquette `release:*`.
-5. Placer EN-01 à EN-06 dans l'itération « Sprint 0 ».
-
-## 4. SonarQube Cloud
+## 3. SonarQube Cloud
 
 1. Se connecter à https://sonarcloud.io avec le compte GitHub et importer le dépôt
-   (gratuit pour un dépôt public).
+   (gratuit pour un dépôt public). Organisation : `mohamedtra`, clé : `mohamedtra_claimflow`.
 2. Choisir l'analyse par la CI (et non l'analyse automatique).
 3. Créer un jeton et l'ajouter au dépôt : `gh secret set SONAR_TOKEN --repo mohamedtra/claimflow`.
 4. Garder le quality gate « Sonar way » : 80 % de couverture et au plus 3 % de duplication sur le
@@ -50,16 +47,16 @@ Dans le projet (interface web) :
 
 Tant que `SONAR_TOKEN` n'est pas défini, l'étape d'analyse est ignorée et le reste de la CI tourne.
 
-## 5. Renovate
+## 4. Renovate
 
-Installer l'application [Renovate](https://github.com/apps/renovate) sur le dépôt. La configuration
-est dans `renovate.json` : mises à jour groupées le lundi matin, actions GitHub épinglées par
-empreinte.
+Installer l'application [Renovate](https://github.com/apps/renovate) sur le dépôt `claimflow`. La
+configuration est dans `renovate.json` : mises à jour groupées le lundi matin, actions GitHub
+épinglées par empreinte.
 
-## 6. Vérifier
+## Vérifier
 
-Ouvrir une pull request qui ne change qu'une ligne du README : les sept contrôles doivent passer.
-Puis ouvrir la pull request de démonstration du sprint 0 (voir ci-dessous) : elle doit être bloquée.
+Ouvrir une pull request qui ne change qu'une ligne du README : les sept contrôles doivent passer et
+la fusion n'est possible qu'une fois tous verts.
 
 ### Pull request de démonstration : violation d'architecture
 
@@ -67,3 +64,7 @@ Sur une branche `demo/violation-architecture`, ajouter dans le module `indemnisa
 importe `fr.claimflow.sinistre.domain.Statut` (package interne d'un autre module). Le job
 « API · tests et qualité » échoue sur `ArchitectureTest`, et la fusion est impossible.
 Ne pas fusionner : fermer la pull request après la démonstration.
+
+## Recréer le backlog dans un autre dépôt
+
+`scripts/github/labels.sh` puis `scripts/github/importer-backlog.sh` (voir `docs/backlog/README.md`).
