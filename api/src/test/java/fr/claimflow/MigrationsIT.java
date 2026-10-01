@@ -72,12 +72,13 @@ class MigrationsIT {
     @Test
     void rg11_meme_le_proprietaire_ne_peut_pas_alterer_le_journal() {
         jdbc.update(ENTREE_AUDIT);
+        // Le message de PostgreSQL est porté par la cause : Spring enveloppe l'erreur SQL.
         assertThatThrownBy(() -> jdbc.update("UPDATE audit.entree_audit SET action = 'MODIFIE'"))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("ajout seul");
+                .rootCause().hasMessageContaining("ajout seul");
         assertThatThrownBy(() -> jdbc.update("TRUNCATE audit.entree_audit"))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("ajout seul");
+                .rootCause().hasMessageContaining("ajout seul");
     }
 
     @Test
