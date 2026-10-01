@@ -23,6 +23,10 @@
         <archunit.version>1.4.2</archunit.version>
         <openapi-generator.version>7.25.0</openapi-generator.version>
         <jacoco.version>0.8.15</jacoco.version>
+        <!-- Sécurité : Spring Boot 4.1.1 embarque Tomcat 11.0.24, touché par trois failles critiques
+             (CVE-2026-65182, CVE-2026-65905, CVE-2026-68525) détectées par Trivy. Version corrigée
+             forcée ; à retirer dès qu'une version de Spring Boot l'intègre (Renovate le signalera). -->
+        <tomcat.version>11.0.25</tomcat.version>
         <!-- SonarQube Cloud : renseigné par la CI -->
         <sonar.organization>mohamedtra</sonar.organization>
         <sonar.projectKey>mohamedtra_claimflow</sonar.projectKey>
