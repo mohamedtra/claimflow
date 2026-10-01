@@ -24,8 +24,8 @@
         <openapi-generator.version>7.25.0</openapi-generator.version>
         <jacoco.version>0.8.15</jacoco.version>
         <!-- SonarQube Cloud : renseigné par la CI -->
-        <sonar.organization>OWNER</sonar.organization>
-        <sonar.projectKey>OWNER_claimflow</sonar.projectKey>
+        <sonar.organization>mohamedtra</sonar.organization>
+        <sonar.projectKey>mohamedtra_claimflow</sonar.projectKey>
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco-merged/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
         <sonar.exclusions>**/fr/claimflow/openapi/**</sonar.exclusions>
     </properties>

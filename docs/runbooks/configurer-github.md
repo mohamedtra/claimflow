@@ -4,22 +4,16 @@
 Prérequis : [GitHub CLI](https://cli.github.com/) authentifié (`gh auth login`), avec la portée
 projet (`gh auth refresh -s project`).
 
-Dans les commandes, remplacer `OWNER` par votre identifiant GitHub.
-
 ## 1. Créer le dépôt public et pousser le socle
 
 ```bash
-gh repo create OWNER/claimflow --public --description "Gestion des sinistres : Java 25, Spring Boot 4, Vue 3" --source . --push
+gh repo create mohamedtra/claimflow --public --description "Gestion des sinistres : Java 25, Spring Boot 4, Vue 3" --source . --push
 ```
-
-Remplacer ensuite `OWNER` dans `.github/CODEOWNERS`, `api/pom.xml` (propriétés Sonar) et
-`docs/openapi/claimflow.yaml` (contact), puis committer :
-`chore(repo): renseigner le propriétaire du dépôt`.
 
 ## 2. Protéger la branche main
 
 ```bash
-gh api repos/OWNER/claimflow/rulesets --method POST --input scripts/github/regles-main.json
+gh api repos/mohamedtra/claimflow/rulesets --method POST --input scripts/github/regles-main.json
 ```
 
 Effet : pull request obligatoire, fusion « squash » uniquement, historique linéaire, pas de
@@ -31,9 +25,9 @@ suppression ni de force-push, et les sept contrôles de la CI doivent être vert
 ## 3. Étiquettes et backlog
 
 ```bash
-scripts/github/labels.sh OWNER/claimflow
-gh project create --owner OWNER --title "ClaimFlow"          # noter le numéro affiché
-scripts/github/importer-backlog.sh OWNER/claimflow <numéro>
+scripts/github/labels.sh mohamedtra/claimflow
+gh project create --owner mohamedtra --title "ClaimFlow"          # noter le numéro affiché
+scripts/github/importer-backlog.sh mohamedtra/claimflow <numéro>
 ```
 
 Dans le projet (interface web) :
@@ -50,7 +44,7 @@ Dans le projet (interface web) :
 1. Se connecter à https://sonarcloud.io avec le compte GitHub et importer le dépôt
    (gratuit pour un dépôt public).
 2. Choisir l'analyse par la CI (et non l'analyse automatique).
-3. Créer un jeton et l'ajouter au dépôt : `gh secret set SONAR_TOKEN --repo OWNER/claimflow`.
+3. Créer un jeton et l'ajouter au dépôt : `gh secret set SONAR_TOKEN --repo mohamedtra/claimflow`.
 4. Garder le quality gate « Sonar way » : 80 % de couverture et au plus 3 % de duplication sur le
    code nouveau.
 

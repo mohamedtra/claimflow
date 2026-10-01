@@ -7,7 +7,7 @@ GitHub Projects ; ce fichier n'est plus modifié.
 Import (une seule fois, après `scripts/github/labels.sh`) :
 
 ```bash
-scripts/github/importer-backlog.sh OWNER/claimflow <numéro-du-projet>
+scripts/github/importer-backlog.sh mohamedtra/claimflow <numéro-du-projet>
 ```
 
 | Colonne | Contenu |

@@ -14,6 +14,8 @@ d'architecture argumentés dans [`docs/adr`](docs/adr).
 
 Prérequis : Docker, Java 25, Maven 3.9, Node.js 22.
 
+[![CI](https://github.com/mohamedtra/claimflow/actions/workflows/ci.yml/badge.svg)](https://github.com/mohamedtra/claimflow/actions/workflows/ci.yml)
+
 ```bash
 make up        # PostgreSQL, Keycloak, stockage objet, Mailpit, ClamAV
 make api       # API Spring Boot sur http://localhost:8080 (profil local, jeu de démo)

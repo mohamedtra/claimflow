@@ -16,7 +16,7 @@ info:
     d'accès (ADR-003). Le point `GET /bff/utilisateur` appartient au BFF et n'est pas décrit ici.
   contact:
     name: Équipe ClaimFlow
-    url: https://github.com/OWNER/claimflow
+    url: https://github.com/mohamedtra/claimflow
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
