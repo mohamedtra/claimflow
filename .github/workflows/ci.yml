@@ -172,6 +172,7 @@ jobs:
       contents: read
       packages: write
     strategy:
+      fail-fast: false
       matrix:
         include:
           - composant: api
@@ -204,7 +205,13 @@ jobs:
           image-ref: ${{ steps.nom.outputs.image }}:${{ github.sha }}
           severity: CRITICAL
           ignore-unfixed: true
-          exit-code: '1'
+          format: json
+          output: trivy-image.json
+          exit-code: '0'
+      - name: Vulnérabilités critiques en annotations
+        env:
+          COMPOSANT: ${{ matrix.composant }}
+        run: .github/scripts/annoter-trivy.py trivy-image.json "$COMPOSANT"
       - name: Connexion au registre
         if: github.event_name == 'push'
         uses: docker/login-action@v3

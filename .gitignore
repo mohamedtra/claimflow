@@ -26,3 +26,4 @@ coverage/
 *.tfstate.*
 gitleaks.json
 maven.log
+trivy-image.json
