@@ -23,7 +23,8 @@ Le script est idempotent. Il applique :
   contrôles de la CI verts, historique linéaire, pas de force-push.
 
 > Les noms des contrôles exigés doivent correspondre aux noms des jobs de
-> `.github/workflows/ci.yml`. Si un job est renommé, mettre à jour `regles-main.json`.
+> `qualite.yml`, `build-backend.yml` et `build-frontend.yml`. Si un job est renommé, mettre à jour
+> `regles-main.json`.
 
 ## 2. Tableau GitHub Projects (interface web, environ 5 minutes)
 

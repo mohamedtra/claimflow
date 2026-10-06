@@ -14,7 +14,9 @@ d'architecture argumentés dans [`docs/adr`](docs/adr).
 
 Prérequis : Docker, Java 25, Maven 3.9, Node.js 22.
 
-[![CI](https://github.com/mohamedtra/claimflow/actions/workflows/ci.yml/badge.svg)](https://github.com/mohamedtra/claimflow/actions/workflows/ci.yml)
+[![Build backend](https://github.com/mohamedtra/claimflow/actions/workflows/build-backend.yml/badge.svg)](https://github.com/mohamedtra/claimflow/actions/workflows/build-backend.yml)
+[![Build frontend](https://github.com/mohamedtra/claimflow/actions/workflows/build-frontend.yml/badge.svg)](https://github.com/mohamedtra/claimflow/actions/workflows/build-frontend.yml)
+[![Qualité commune](https://github.com/mohamedtra/claimflow/actions/workflows/qualite.yml/badge.svg)](https://github.com/mohamedtra/claimflow/actions/workflows/qualite.yml)
 
 ```bash
 make up        # PostgreSQL, Keycloak, stockage objet, Mailpit, ClamAV
@@ -51,8 +53,9 @@ scripts/  outillage GitHub (labels, import du backlog)
 
 - Sprints de deux semaines, backlog dans GitHub Projects ([`docs/backlog`](docs/backlog)).
 - Branches courtes, pull request obligatoire, [Conventional Commits](CONTRIBUTING.md).
-- La CI bloque toute fusion si un contrôle échoue : tests, architecture, qualité,
-  dépendances vulnérables, secrets, compatibilité du contrat d'API.
+- Build automatique, séparé pour le backend et le frontend : la CI bloque toute fusion si un
+  contrôle échoue (tests, architecture, qualité, dépendances, secrets, contrat d'API).
+- Déploiement manuel, environnement par environnement : voir [`docs/runbooks/deployer.md`](docs/runbooks/deployer.md).
 - Les règles suivies par l'assistant IA sont écrites dans [`AGENTS.md`](AGENTS.md).
 
 ## Démonstrations de fin de sprint
