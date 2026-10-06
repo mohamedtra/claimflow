@@ -1,0 +1,140 @@
+name: Build backend
+
+# Chaîne du backend : tests, qualité, image Docker. Déclenchée automatiquement à chaque pull
+# request et à chaque fusion sur main, mais les jobs ne s'exécutent que si le backend a changé.
+# Un job ignoré compte comme réussi pour la protection de main : une pull request qui ne touche
+# que la SPA n'attend pas le build de l'API.
+#
+# Sur main, l'image est publiée avec l'empreinte du commit. C'est le seul endroit où elle est
+# construite : le déploiement (deploy-backend.yml) promeut cette même image, sans la reconstruire.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-backend-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changements:
+    name: Backend modifié ?
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filtre.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: filtre
+        with:
+          # Doit rester identique à la liste « chemins » de deploy-backend.yml.
+          filters: |
+            backend:
+              - 'api/**'
+              - 'docs/openapi/**'
+              - '.github/workflows/build-backend.yml'
+              - '.github/scripts/**'
+
+  api:
+    name: API · tests et qualité
+    needs: changements
+    if: needs.changements.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Tests unitaires, d'architecture et d'intégration (Testcontainers)
+        run: |
+          set -o pipefail
+          mvn -B -f api/pom.xml verify 2>&1 | tee maven.log
+      - name: Erreurs du build en annotations
+        if: failure()
+        run: .github/scripts/annoter-echecs.sh maven.log
+      - name: Analyse SonarQube Cloud
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: env.SONAR_TOKEN != ''
+        run: >-
+          mvn -B -f api/pom.xml org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.host.url=https://sonarcloud.io
+          -Dsonar.qualitygate.wait=true
+      - name: Rapports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapports-api
+          path: |
+            api/target/site/jacoco-merged/
+            api/target/spring-modulith-docs/
+            api/target/surefire-reports/
+            api/target/failsafe-reports/
+          if-no-files-found: ignore
+
+  image:
+    name: Image api
+    needs: [changements, api]
+    if: needs.changements.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      COMPOSANT: api
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: Nom de l'image
+        id: nom
+        env:
+          DEPOT: ${{ github.repository }}
+        run: echo "image=ghcr.io/${DEPOT,,}-${COMPOSANT}" >> "$GITHUB_OUTPUT"
+      - name: Construction
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: api/Dockerfile
+          load: true
+          tags: ${{ steps.nom.outputs.image }}:${{ github.sha }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+      - name: Vulnérabilités de l'image (Trivy)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.nom.outputs.image }}:${{ github.sha }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          format: json
+          output: trivy-image.json
+          exit-code: '0'
+      - name: Vulnérabilités critiques en annotations
+        run: .github/scripts/annoter-trivy.py trivy-image.json "$COMPOSANT"
+      - name: Connexion au registre
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publication
+        if: github.event_name == 'push'
+        env:
+          IMAGE: ${{ steps.nom.outputs.image }}
+          SHA: ${{ github.sha }}
+        run: |
+          docker push "${IMAGE}:${SHA}"
+          echo "### Image publiée" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`${IMAGE}:${SHA}\` : prête à être déployée avec **Deploy backend**." >> "$GITHUB_STEP_SUMMARY"

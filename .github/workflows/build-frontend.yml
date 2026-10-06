@@ -1,0 +1,124 @@
+name: Build frontend
+
+# Chaîne du frontend : lint, types, tests, build, image Docker. Déclenchée automatiquement à chaque pull
+# request et à chaque fusion sur main, mais les jobs ne s'exécutent que si le frontend a changé.
+# Un job ignoré compte comme réussi pour la protection de main : une pull request qui ne touche
+# que l'API n'attend pas le build de la SPA.
+#
+# Sur main, l'image est publiée avec l'empreinte du commit. C'est le seul endroit où elle est
+# construite : le déploiement (deploy-frontend.yml) promeut cette même image, sans la reconstruire.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-frontend-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changements:
+    name: Frontend modifié ?
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      frontend: ${{ steps.filtre.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dorny/paths-filter@v3
+        id: filtre
+        with:
+          # Doit rester identique à la liste « chemins » de deploy-frontend.yml.
+          filters: |
+            frontend:
+              - 'web/**'
+              - 'docs/openapi/**'
+              - '.github/workflows/build-frontend.yml'
+              - '.github/scripts/**'
+
+  web:
+    name: SPA · lint, types, tests
+    needs: changements
+    if: needs.changements.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Types TypeScript à jour avec le contrat d'API
+        run: |
+          npm run generate:api
+          git diff --exit-code -- src/api/schema.d.ts \
+            || { echo "::error::src/api/schema.d.ts est obsolète : lancer « npm run generate:api »."; exit 1; }
+      - run: npm run lint
+      - run: npm run type-check
+      - run: npm test
+      - run: npm run build
+
+  image:
+    name: Image web
+    needs: [changements, web]
+    if: needs.changements.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      COMPOSANT: web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: Nom de l'image
+        id: nom
+        env:
+          DEPOT: ${{ github.repository }}
+        run: echo "image=ghcr.io/${DEPOT,,}-${COMPOSANT}" >> "$GITHUB_OUTPUT"
+      - name: Construction
+        uses: docker/build-push-action@v6
+        with:
+          context: web
+          file: web/Dockerfile
+          load: true
+          tags: ${{ steps.nom.outputs.image }}:${{ github.sha }}
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+      - name: Vulnérabilités de l'image (Trivy)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.nom.outputs.image }}:${{ github.sha }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          format: json
+          output: trivy-image.json
+          exit-code: '0'
+      - name: Vulnérabilités critiques en annotations
+        run: .github/scripts/annoter-trivy.py trivy-image.json "$COMPOSANT"
+      - name: Connexion au registre
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publication
+        if: github.event_name == 'push'
+        env:
+          IMAGE: ${{ steps.nom.outputs.image }}
+          SHA: ${{ github.sha }}
+        run: |
+          docker push "${IMAGE}:${SHA}"
+          echo "### Image publiée" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`${IMAGE}:${SHA}\` : prête à être déployée avec **Deploy frontend**." >> "$GITHUB_STEP_SUMMARY"
