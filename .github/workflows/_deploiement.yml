@@ -1,0 +1,178 @@
+name: Déploiement (commun)
+
+# Logique de déploiement partagée par deploy-backend.yml et deploy-frontend.yml.
+#
+# Principe : construire une fois, déployer partout. Ce workflow ne construit rien : il retrouve
+# l'image publiée par le build de main, vérifie les règles de promotion de l'environnement visé,
+# puis déploie cette image exacte. Les règles :
+#   dev   lancé depuis main            dernière version du composant sur main
+#   rct   lancé depuis un tag vX.Y.Z-rc.N   version candidate, pour la recette
+#   prod  lancé depuis un tag vX.Y.Z   uniquement l'image actuellement en rct, avec approbation
+on:
+  workflow_call:
+    inputs:
+      composant:
+        description: api ou web
+        type: string
+        required: true
+      chemins:
+        description: Chemins qui définissent une version du composant (liste séparée par des espaces)
+        type: string
+        required: true
+      environnement:
+        description: dev, rct ou prod
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  verifier:
+    name: Vérifier la version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      image: ${{ steps.version.outputs.image }}
+      sha: ${{ steps.version.outputs.sha }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Règles de promotion
+        env:
+          ENVIRONNEMENT: ${{ inputs.environnement }}
+          TYPE_REF: ${{ github.ref_type }}
+          REF: ${{ github.ref_name }}
+        run: |
+          refuser() { echo "::error title=Déploiement refusé::$1"; exit 1; }
+          case "$ENVIRONNEMENT" in
+            dev)
+              [ "$TYPE_REF" = branch ] && [ "$REF" = main ] \
+                || refuser "dev se déploie depuis main (lancé depuis $TYPE_REF « $REF »)." ;;
+            rct)
+              [ "$TYPE_REF" = tag ] && [[ "$REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]] \
+                || refuser "rct se déploie depuis un tag vX.Y.Z-rc.N (lancé depuis $TYPE_REF « $REF »)." ;;
+            prod)
+              [ "$TYPE_REF" = tag ] && [[ "$REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+                || refuser "prod se déploie depuis un tag vX.Y.Z (lancé depuis $TYPE_REF « $REF »)." ;;
+            *) refuser "Environnement inconnu : $ENVIRONNEMENT" ;;
+          esac
+          echo "Règle respectée : $ENVIRONNEMENT depuis $TYPE_REF « $REF »."
+      - name: Version du composant
+        id: version
+        env:
+          COMPOSANT: ${{ inputs.composant }}
+          CHEMINS: ${{ inputs.chemins }}
+          DEPOT: ${{ github.repository }}
+          TYPE_REF: ${{ github.ref_type }}
+          REF: ${{ github.ref_name }}
+        run: |
+          # Une image n'est construite que si le composant change : sa version est donc le dernier
+          # commit qui l'a modifié, à partir de la référence choisie.
+          # shellcheck disable=SC2086
+          sha="$(git log -1 --format=%H HEAD -- $CHEMINS)"
+          if [ "$TYPE_REF" = tag ]; then version="$REF"; else version="${sha:0:7}"; fi
+          {
+            echo "image=ghcr.io/${DEPOT,,}-${COMPOSANT}"
+            echo "sha=$sha"
+            echo "version=$version"
+          } >> "$GITHUB_OUTPUT"
+          echo "Composant $COMPOSANT : version $version (commit $sha)"
+      - name: Connexion au registre
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: L'image existe
+        env:
+          IMAGE: ${{ steps.version.outputs.image }}
+          SHA: ${{ steps.version.outputs.sha }}
+        run: |
+          docker buildx imagetools inspect "${IMAGE}:${SHA}" >/dev/null 2>&1 || {
+            echo "::error title=Image introuvable::${IMAGE}:${SHA} n'a pas été publiée. Le build de main a-t-il réussi pour ce commit ?"
+            exit 1
+          }
+          echo "Image trouvée : ${IMAGE}:${SHA}"
+      - name: prod reçoit uniquement ce qui a été recetté
+        if: inputs.environnement == 'prod'
+        env:
+          IMAGE: ${{ steps.version.outputs.image }}
+          SHA: ${{ steps.version.outputs.sha }}
+        run: |
+          empreinte() { docker buildx imagetools inspect "$1" --format '{{json .Manifest.Digest}}' 2>/dev/null; }
+          en_rct="$(empreinte "${IMAGE}:rct")"
+          candidate="$(empreinte "${IMAGE}:${SHA}")"
+          [ -n "$en_rct" ] && [ "$en_rct" = "$candidate" ] || {
+            echo "::error title=Promotion refusée::L'image à déployer n'est pas celle qui est en rct. Déployer et recetter d'abord la version candidate en rct."
+            exit 1
+          }
+          echo "L'image est identique à celle validée en rct ($candidate)."
+
+  deployer:
+    name: Déployer ${{ inputs.composant }} en ${{ inputs.environnement }}
+    needs: verifier
+    runs-on: ubuntu-latest
+    # L'environnement GitHub porte les protections : approbation obligatoire pour prod,
+    # restrictions de branches et de tags, secrets propres à chaque environnement.
+    environment: ${{ inputs.environnement }}
+    concurrency:
+      group: deploiement-${{ inputs.environnement }}-${{ inputs.composant }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+      id-token: write   # fédération OIDC vers AWS (EN-08), sans clé longue durée
+    steps:
+      - name: Connexion au registre
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      # Promotion sans reconstruction : de nouvelles étiquettes sur la même image (même empreinte).
+      - name: Promotion de l'image
+        env:
+          IMAGE: ${{ needs.verifier.outputs.image }}
+          SHA: ${{ needs.verifier.outputs.sha }}
+          VERSION: ${{ needs.verifier.outputs.version }}
+          ENVIRONNEMENT: ${{ inputs.environnement }}
+        run: |
+          docker buildx imagetools create \
+            --tag "${IMAGE}:${ENVIRONNEMENT}" --tag "${IMAGE}:${VERSION}" "${IMAGE}:${SHA}"
+          echo "${IMAGE}:${SHA} étiquetée ${ENVIRONNEMENT} et ${VERSION}"
+      - name: Déploiement sur AWS
+        env:
+          ROLE_AWS: ${{ vars.AWS_ROLE_ARN }}
+          ENVIRONNEMENT: ${{ inputs.environnement }}
+        run: |
+          if [ -z "$ROLE_AWS" ]; then
+            echo "::notice title=Environnement AWS pas encore créé::L'image est promue sur l'étiquette ${ENVIRONNEMENT}. Le déploiement sur AWS sera branché à la création de l'environnement (EN-08 pour dev, EN-09 pour rct, EN-12 pour prod)."
+            exit 0
+          fi
+          echo "::error::La variable AWS_ROLE_ARN est définie mais le déploiement AWS n'est pas encore implémenté (EN-08)."
+          exit 1
+      - name: Résumé
+        env:
+          COMPOSANT: ${{ inputs.composant }}
+          ENVIRONNEMENT: ${{ inputs.environnement }}
+          IMAGE: ${{ needs.verifier.outputs.image }}
+          SHA: ${{ needs.verifier.outputs.sha }}
+          VERSION: ${{ needs.verifier.outputs.version }}
+          ACTEUR: ${{ github.actor }}
+        run: |
+          {
+            echo "### ${COMPOSANT} déployé en ${ENVIRONNEMENT}"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Version | \`${VERSION}\` |"
+            echo "| Commit | \`${SHA}\` |"
+            echo "| Image | \`${IMAGE}:${ENVIRONNEMENT}\` |"
+            echo "| Déclenché par | ${ACTEUR} |"
+          } >> "$GITHUB_STEP_SUMMARY"

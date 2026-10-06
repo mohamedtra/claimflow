@@ -1,0 +1,30 @@
+name: Deploy frontend
+
+# Déploiement manuel du frontend, environnement par environnement (voir _deploiement.yml).
+# Actions → Deploy frontend → Run workflow : choisir la référence (main, ou un tag de version)
+# et l'environnement. prod attend l'approbation du propriétaire du dépôt.
+on:
+  workflow_dispatch:
+    inputs:
+      environnement:
+        description: Environnement cible
+        type: choice
+        options: [dev, rct, prod]
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploiement:
+    name: Frontend
+    uses: ./.github/workflows/_deploiement.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    with:
+      composant: web
+      # Doit rester identique au filtre de build-frontend.yml.
+      chemins: web docs/openapi .github/workflows/build-frontend.yml .github/scripts
+      environnement: ${{ inputs.environnement }}

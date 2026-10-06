@@ -1,0 +1,104 @@
+name: Qualité commune
+
+# Contrôles transverses, exécutés à chaque pull request et sur main, quel que soit le composant
+# modifié : messages de commit, contrat d'API (frontière entre le backend et le frontend), secrets
+# et dépendances. Les builds du backend et du frontend sont dans leurs propres workflows.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qualite-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  commits:
+    name: Messages de commit
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Conventional Commits
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: npx commitlint --from "$BASE" --to "$HEAD" --verbose
+
+  # Le contrat est ce qui permet de déployer l'API et la SPA séparément : tant qu'il reste
+  # compatible (oasdiff), une version de la SPA fonctionne avec la version précédente de l'API.
+  contrat-api:
+    name: Contrat d'API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Règles du contrat (Spectral)
+        run: npm run lint:api
+      - name: Contrat de la branche cible
+        id: base
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if git show "origin/${BASE_REF}:docs/openapi/claimflow.yaml" > base-claimflow.yaml 2>/dev/null; then
+            echo "existe=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Pas de contrat sur la branche cible : comparaison ignorée."
+            echo "existe=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Changements incompatibles (oasdiff)
+        if: steps.base.outputs.existe == 'true'
+        uses: oasdiff/oasdiff-action/breaking@v0.1.4
+        with:
+          base: base-claimflow.yaml
+          revision: docs/openapi/claimflow.yaml
+          fail-on: ERR
+
+  securite:
+    name: Secrets et dépendances
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      # Gitleaks en conteneur : chaque fuite devient une annotation sur le fichier concerné.
+      - name: Secrets (Gitleaks)
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest \
+            git /repo --config /repo/.gitleaks.toml --redact --exit-code 0 \
+            --report-format json --report-path /repo/gitleaks.json
+          python3 - <<'PY'
+          import json, sys
+          fuites = json.load(open('gitleaks.json')) or []
+          for f in fuites:
+              print(f"::error file={f['File']},line={f['StartLine']},title=Secret détecté ({f['RuleID']})::"
+                    f"Commit {f['Commit'][:8]} : {f['Description']}")
+          print(f"{len(fuites)} fuite(s) détectée(s)")
+          sys.exit(1 if fuites else 0)
+          PY
+      - name: Dépendances vulnérables (Trivy)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
