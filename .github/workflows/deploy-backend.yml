@@ -1,0 +1,30 @@
+name: Deploy backend
+
+# Déploiement manuel du backend, environnement par environnement (voir _deploiement.yml).
+# Actions → Deploy backend → Run workflow : choisir la référence (main, ou un tag de version)
+# et l'environnement. prod attend l'approbation du propriétaire du dépôt.
+on:
+  workflow_dispatch:
+    inputs:
+      environnement:
+        description: Environnement cible
+        type: choice
+        options: [dev, rct, prod]
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploiement:
+    name: Backend
+    uses: ./.github/workflows/_deploiement.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    with:
+      composant: api
+      # Doit rester identique au filtre de build-backend.yml.
+      chemins: api docs/openapi .github/workflows/build-backend.yml .github/scripts
+      environnement: ${{ inputs.environnement }}
