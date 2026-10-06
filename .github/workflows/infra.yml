@@ -104,7 +104,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   appliquer:
-    name: Terraform · ${{ inputs.action }} dev
+    name: Terraform · dev (manuel)
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     # L'environnement dev n'accepte que main et fournit AWS_ROLE_ARN (rôle claimflow-ci-dev).
