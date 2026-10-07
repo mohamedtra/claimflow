@@ -45,8 +45,17 @@ donc l'ancienne SPA fonctionne avec la nouvelle API, mais pas l'inverse.
 Relancer le déploiement de l'environnement depuis la référence précédente (le tag de la version
 d'avant). Rien n'est reconstruit : l'image de cette version existe déjà dans le registre.
 
-## Tant que les environnements AWS n'existent pas
+## Ce que fait le déploiement sur AWS
 
-Le déploiement vérifie les règles, retrouve l'image et la promeut (étiquettes `dev`, `rct`, `prod` et
-numéro de version dans le registre GitHub), puis s'arrête avec un message. Le déploiement réel sera
-branché avec EN-08 (dev), EN-09 (rct) et EN-12 (prod).
+Après la promotion de l'image, si l'environnement GitHub porte la variable `AWS_ROLE_ARN`, le job
+obtient des identifiants AWS temporaires (OIDC) et lance `scripts/deploiement/aws.sh` :
+
+- **api** : démarre l'instance si elle est arrêtée (arrêt nocturne), enregistre la version dans SSM
+  (`/claimflow/<env>/version/api`), lance `deployer.sh` sur l'instance par SSM Run Command, puis
+  attend `https://<adresse>/actuator/health` ;
+- **web** : extrait les fichiers de l'image web, les publie dans le bucket de la SPA, invalide
+  CloudFront, puis vérifie que la page d'accueil répond.
+
+L'adresse de l'environnement figure dans le résumé du job. Seul dev existe pour l'instant
+(`docs/runbooks/aws-demarrage.md`, ADR-015) ; pour rct et prod, sans `AWS_ROLE_ARN`, le déploiement
+s'arrête après la promotion de l'image avec un message (EN-09, EN-12).

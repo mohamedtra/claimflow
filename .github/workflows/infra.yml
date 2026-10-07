@@ -1,0 +1,158 @@
+name: Infra
+
+# Infrastructure AWS décrite par Terraform (infra/terraform, ADR-015).
+#   pull request   format, validation et analyse de sécurité, puis plan de dev (lecture seule)
+#   manuel         Actions → Infra → Run workflow (depuis main) : plan ou apply de dev
+# L'amorçage (infra/terraform/bootstrap) n'est jamais appliqué par la CI : il crée les rôles que la
+# CI utilise, il se lance depuis le poste de l'administrateur (docs/runbooks/aws-demarrage.md).
+on:
+  pull_request:
+    paths:
+      - infra/terraform/**
+      - infra/docker/keycloak/**
+      - .github/workflows/infra.yml
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Action sur l'environnement dev
+        type: choice
+        options: [plan, apply]
+        default: plan
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infra-${{ github.event_name == 'workflow_dispatch' && 'dev' || github.ref }}
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: "1"
+  TF_INPUT: "0"
+  AWS_REGION: eu-west-3
+
+jobs:
+  verifier:
+    name: Terraform · format, validation, sécurité
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.13"
+          terraform_wrapper: false
+      - name: Format
+        run: terraform fmt -check -recursive -diff infra/terraform
+      - name: Validation
+        run: |
+          for pile in infra/terraform/bootstrap infra/terraform/envs/dev; do
+            echo "::group::$pile"
+            terraform -chdir="$pile" init -backend=false
+            terraform -chdir="$pile" validate
+            echo "::endgroup::"
+          done
+      # Chaque exception est justifiée dans le code (#checkov:skip=…:raison) : coût en dev, ou
+      # faux positif. Une règle non justifiée fait échouer la vérification.
+      - name: Sécurité (Checkov)
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: infra/terraform
+          framework: terraform
+          quiet: true
+          compact: true
+          download_external_modules: false
+
+  plan:
+    name: Terraform · plan dev
+    needs: verifier
+    # Seulement une fois l'amorçage fait, et jamais pour une pull request venue d'un fork.
+    if: >-
+      github.event_name == 'pull_request'
+      && vars.AWS_PLAN_ROLE_ARN != ''
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infra/terraform/envs/dev
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.13"
+          terraform_wrapper: false
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: claimflow-plan-${{ github.event.pull_request.number }}
+      - name: Init
+        env:
+          BUCKET: ${{ vars.TF_STATE_BUCKET }}
+        run: terraform init -backend-config="bucket=${BUCKET}"
+      # Rôle en lecture seule : pas de verrou (il faudrait écrire dans le bucket d'état).
+      - name: Plan
+        run: |
+          terraform plan -lock=false -no-color -out=tfplan | tee plan.txt
+          {
+            echo "### Plan Terraform (dev)"
+            echo '```'
+            grep -E '^(Plan:|No changes|  # )' plan.txt || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  appliquer:
+    name: Terraform · dev (manuel)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    # L'environnement dev n'accepte que main et fournit AWS_ROLE_ARN (rôle claimflow-ci-dev).
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: infra/terraform/envs/dev
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.13"
+          terraform_wrapper: false
+      - name: Variables présentes
+        env:
+          ROLE: ${{ vars.AWS_ROLE_ARN }}
+          BUCKET: ${{ vars.TF_STATE_BUCKET }}
+        run: |
+          [ -n "$ROLE" ] && [ -n "$BUCKET" ] || {
+            echo "::error title=Amorçage AWS manquant::Créer AWS_ROLE_ARN (environnement dev) et TF_STATE_BUCKET (dépôt) : docs/runbooks/aws-demarrage.md."
+            exit 1
+          }
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: claimflow-infra-dev
+      - name: Init
+        env:
+          BUCKET: ${{ vars.TF_STATE_BUCKET }}
+        run: terraform init -backend-config="bucket=${BUCKET}"
+      - name: Plan
+        run: |
+          terraform plan -no-color -out=tfplan | tee plan.txt
+          {
+            echo "### Plan Terraform (dev)"
+            echo '```'
+            grep -E '^(Plan:|No changes|  # )' plan.txt || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Apply
+        if: inputs.action == 'apply'
+        run: |
+          terraform apply -no-color tfplan
+          {
+            echo
+            echo "**Appliqué.** Adresse de dev : $(terraform output -raw url)"
+          } >> "$GITHUB_STEP_SUMMARY"

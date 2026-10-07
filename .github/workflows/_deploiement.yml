@@ -126,7 +126,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write   # fédération OIDC vers AWS (EN-08), sans clé longue durée
+      id-token: write   # fédération OIDC vers AWS, sans clé longue durée (bootstrap Terraform)
     steps:
       - name: Connexion au registre
         uses: docker/login-action@v3
@@ -146,17 +146,34 @@ jobs:
           docker buildx imagetools create \
             --tag "${IMAGE}:${ENVIRONNEMENT}" --tag "${IMAGE}:${VERSION}" "${IMAGE}:${SHA}"
           echo "${IMAGE}:${SHA} étiquetée ${ENVIRONNEMENT} et ${VERSION}"
+      # Le déploiement réel n'a lieu que si l'environnement GitHub porte la variable AWS_ROLE_ARN
+      # (créée avec l'environnement AWS : EN-08 pour dev, EN-09 pour rct, EN-12 pour prod).
+      - uses: actions/checkout@v5
+        if: vars.AWS_ROLE_ARN != ''
+        with:
+          sparse-checkout: scripts/deploiement
+      - name: Identifiants AWS (OIDC)
+        if: vars.AWS_ROLE_ARN != ''
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: eu-west-3
+          role-session-name: claimflow-${{ inputs.composant }}-${{ inputs.environnement }}
       - name: Déploiement sur AWS
+        id: aws
         env:
           ROLE_AWS: ${{ vars.AWS_ROLE_ARN }}
+          COMPOSANT: ${{ inputs.composant }}
           ENVIRONNEMENT: ${{ inputs.environnement }}
+          IMAGE: ${{ needs.verifier.outputs.image }}
+          SHA: ${{ needs.verifier.outputs.sha }}
+          VERSION: ${{ needs.verifier.outputs.version }}
         run: |
           if [ -z "$ROLE_AWS" ]; then
             echo "::notice title=Environnement AWS pas encore créé::L'image est promue sur l'étiquette ${ENVIRONNEMENT}. Le déploiement sur AWS sera branché à la création de l'environnement (EN-08 pour dev, EN-09 pour rct, EN-12 pour prod)."
             exit 0
           fi
-          echo "::error::La variable AWS_ROLE_ARN est définie mais le déploiement AWS n'est pas encore implémenté (EN-08)."
-          exit 1
+          bash scripts/deploiement/aws.sh "$COMPOSANT"
       - name: Résumé
         env:
           COMPOSANT: ${{ inputs.composant }}
@@ -165,6 +182,7 @@ jobs:
           SHA: ${{ needs.verifier.outputs.sha }}
           VERSION: ${{ needs.verifier.outputs.version }}
           ACTEUR: ${{ github.actor }}
+          URL: ${{ steps.aws.outputs.url }}
         run: |
           {
             echo "### ${COMPOSANT} déployé en ${ENVIRONNEMENT}"
@@ -175,4 +193,5 @@ jobs:
             echo "| Commit | \`${SHA}\` |"
             echo "| Image | \`${IMAGE}:${ENVIRONNEMENT}\` |"
             echo "| Déclenché par | ${ACTEUR} |"
+            if [ -n "$URL" ]; then echo "| Adresse | ${URL} |"; fi
           } >> "$GITHUB_STEP_SUMMARY"

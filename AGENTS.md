@@ -24,6 +24,9 @@ pour les termes consacrés (repository, controller…).
 | Stocker un fichier en base | ADR-008 | Stockage objet + métadonnées |
 | `UPDATE` ou `DELETE` sur `audit.entree_audit` | Journal en ajout seul (ADR-010) | Nouvelle entrée |
 | Secret, mot de passe ou jeton dans le dépôt | Dépôt public | Variables d'environnement, Secrets Manager |
+| Ressource AWS créée ou modifiée à la main (console, CLI) | Dérive entre Terraform et la réalité (ADR-015) | Pull request sur `infra/terraform`, plan relu dans la CI |
+| Clé d'accès AWS longue durée, pour la CI ou sur un poste | Fuite = accès permanent au compte | OIDC pour GitHub Actions, `aws login` pour un humain |
+| `#checkov:skip` sans raison | Exception invisible en revue | `#checkov:skip=CODE:raison` sur la ressource concernée |
 
 ## Ce qui est attendu
 

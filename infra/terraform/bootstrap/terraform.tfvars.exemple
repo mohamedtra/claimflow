@@ -1,0 +1,7 @@
+# Copier en terraform.tfvars (ignoré par git) et renseigner. Ne jamais committer terraform.tfvars.
+email_alertes = "vous@exemple.fr"
+
+# Valeurs par défaut, à changer seulement si besoin :
+# region             = "eu-west-3"
+# depot_github       = "mohamedtra/claimflow"
+# budget_mensuel_usd = 50

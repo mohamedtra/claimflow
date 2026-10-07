@@ -1,6 +1,6 @@
 -- Exécuté une seule fois, à la création du volume PostgreSQL local.
--- En production, ces rôles et bases sont créés par Terraform, avec des mots de passe issus de
--- Secrets Manager. Les mots de passe ci-dessous ne servent qu'en local.
+-- Sur AWS (dev), le même script existe avec des mots de passe générés sur l'instance et rangés dans
+-- SSM (infra/terraform/envs/dev/fichiers/init-postgres.sh). Ceux ci-dessous ne servent qu'en local.
 
 -- Propriétaire du schéma : utilisé par Flyway uniquement.
 CREATE ROLE claimflow LOGIN PASSWORD 'claimflow-dev';

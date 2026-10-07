@@ -24,6 +24,8 @@ coverage/
 .terraform/
 *.tfstate
 *.tfstate.*
+*.tfvars
+tfplan
 gitleaks.json
 maven.log
 trivy-image.json

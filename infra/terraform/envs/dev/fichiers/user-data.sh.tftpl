@@ -1,0 +1,76 @@
+#!/bin/bash
+# Premier démarrage de l'instance ClaimFlow ${environnement} (exécuté une seule fois par cloud-init).
+# Prépare la machine ; le déploiement de la pile est fait par deployer.sh, relancé ensuite par la CI.
+# Journal : /var/log/claimflow-init.log
+set -euxo pipefail
+exec > >(tee -a /var/log/claimflow-init.log) 2>&1
+
+# L'Elastic IP est associée quelques secondes après la création : attendre l'accès à Internet.
+for _ in $(seq 1 60); do
+  curl -fsS -o /dev/null --max-time 5 https://ghcr.io && break
+  sleep 5
+done
+
+timedatectl set-timezone Europe/Paris
+
+# Mémoire d'appoint : 2 Gio de swap pour une instance de 2 Gio (Keycloak et la JVM de l'API).
+if [ ! -f /swapfile ]; then
+  fallocate -l 2G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
+# Volume de données (PostgreSQL). Formaté seulement s'il est vierge : rattaché à une nouvelle
+# instance, il garde ses données.
+DISQUE=/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_${volume_donnees}
+for _ in $(seq 1 60); do
+  [ -e "$DISQUE" ] && break
+  sleep 5
+done
+blkid "$DISQUE" || mkfs.ext4 -L claimflow-donnees "$DISQUE"
+mkdir -p /srv/claimflow/donnees
+grep -q claimflow-donnees /etc/fstab || echo 'LABEL=claimflow-donnees /srv/claimflow/donnees ext4 defaults,nofail 0 2' >> /etc/fstab
+mount -a
+
+# Docker et Compose (paquets Ubuntu), AWS CLI v2.
+apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get install -y docker.io docker-compose-v2
+systemctl enable --now docker
+snap install aws-cli --classic
+ln -sf /snap/bin/aws /usr/local/bin/aws
+
+mkdir -p /etc/claimflow /opt/claimflow
+cat > /etc/claimflow/environnement <<FIN
+ENVIRONNEMENT=${environnement}
+REGION=${region}
+BUCKET_EXPLOITATION=${bucket_exploitation}
+FIN
+
+# Sauvegarde quotidienne de PostgreSQL vers S3, avant l'arrêt nocturne.
+cat > /etc/systemd/system/claimflow-sauvegarde.service <<'FIN'
+[Unit]
+Description=Sauvegarde PostgreSQL de ClaimFlow vers S3
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/claimflow/config/sauvegarder.sh
+FIN
+cat > /etc/systemd/system/claimflow-sauvegarde.timer <<'FIN'
+[Unit]
+Description=Sauvegarde quotidienne de ClaimFlow
+
+[Timer]
+OnCalendar=*-*-* 22:30:00
+
+[Install]
+WantedBy=timers.target
+FIN
+systemctl daemon-reload
+systemctl enable --now claimflow-sauvegarde.timer
+
+# Premier déploiement. Il échoue tant qu'aucune image n'a été promue en dev : la CI le refera.
+aws s3 cp "s3://${bucket_exploitation}/config/deployer.sh" /opt/claimflow/deployer.sh --region ${region}
+bash /opt/claimflow/deployer.sh || echo "Premier déploiement incomplet : il sera fait par Deploy backend (dev)."
