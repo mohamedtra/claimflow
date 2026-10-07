@@ -28,7 +28,7 @@ data "aws_iam_policy_document" "confiance_plan" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.depot_github}:pull_request"]
+      values   = ["repo:mohamedtra@36902772/claimflow@1399766812:pull_request"]
     }
   }
 }
@@ -53,7 +53,7 @@ data "aws_iam_policy_document" "confiance_dev" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.depot_github}:environment:dev"]
+      values   = ["repo:mohamedtra@36902772/claimflow@1399766812:environment:dev"]
     }
   }
 }
