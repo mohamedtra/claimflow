@@ -4,7 +4,7 @@
 #   1. relit la configuration dans S3 (config/) ;
 #   2. lit les secrets dans SSM, et crée ceux qui manquent (premier déploiement) ;
 #   3. lit la version de l'API à déployer (/claimflow/<env>/version/api) ;
-#   4. tire les images, relance les conteneurs modifiés et attend que l'API réponde.
+#   4. tire les images, relance les conteneurs modifiés, recharge nginx et attend que l'API réponde.
 set -euo pipefail
 
 # shellcheck source=/dev/null
@@ -82,6 +82,12 @@ compose() { docker compose --project-directory "$REP" -f "$REP/config/docker-com
 journal "version de l'API : ${version_api:-dev}"
 compose pull --quiet
 compose up -d --remove-orphans
+
+# Compose ne recrée un conteneur que si sa définition change, pas quand seul le contenu d'un
+# fichier monté change : nginx doit relire nginx.conf, après l'avoir validé.
+journal "rechargement de nginx"
+compose exec -T proxy nginx -t -q
+compose exec -T proxy nginx -s reload
 
 journal "attente de l'API"
 for _ in $(seq 1 60); do
