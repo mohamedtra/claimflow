@@ -14,6 +14,17 @@
       "matchDatasources": ["docker"],
       "matchPackageNames": ["postgres"],
       "allowedVersions": "<19"
+    },
+    {
+      "description": "ADR-013 : TypeScript 5.9 tant que typescript-eslint et openapi-typescript ne prennent pas en charge les versions suivantes",
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<6"
+    },
+    {
+      "description": "nginx : branche stable uniquement (mineure paire) ; les mineures impaires sont la branche de développement",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["nginxinc/nginx-unprivileged"],
+      "allowedVersions": "/^1\\.\\d*[02468]-alpine$/"
     }
   ]
 }
