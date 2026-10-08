@@ -97,6 +97,17 @@ deployer_api() {
   attendre_sante "${url}/actuator/health"
   # Keycloak démarre après l'API (construction au premier lancement) : le sprint 1 en dépend.
   attendre_sante "${url}/auth/realms/claimflow/.well-known/openid-configuration"
+  verifier_fermes "${url}/auth/admin" "${url}/auth/realms/master"
+}
+
+# L'administration de Keycloak ne doit jamais répondre depuis Internet (tunnel SSM uniquement).
+verifier_fermes() {
+  local adresse code
+  for adresse in "$@"; do
+    code=$(curl -s -o /dev/null --max-time 10 -w '%{http_code}' "$adresse")
+    [ "$code" = 403 ] || echouer "Administration exposée" "$adresse répond $code au lieu de 403."
+    echo "Fermé (403) : $adresse"
+  done
 }
 
 deployer_web() {

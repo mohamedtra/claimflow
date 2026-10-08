@@ -22,11 +22,10 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Origine-CloudFront "";
 
-    # Administration de Keycloak : jamais par Internet (tunnel SSM uniquement).
-    location ^~ /auth/admin/ {
-        return 403;
-    }
-    location ^~ /auth/realms/master/ {
+    # Administration de Keycloak : jamais par Internet (tunnel SSM uniquement). Expression
+    # régulière, sans tenir compte de la casse, pour couvrir aussi /auth/admin et
+    # /auth/realms/master sans barre finale (nginx décode et normalise l'URI avant de comparer).
+    location ~* ^/auth/(admin|realms/master)(/|$) {
         return 403;
     }
 
