@@ -30,7 +30,7 @@ jobs:
       backend: ${{ steps.filtre.outputs.backend }}
     steps:
       - uses: actions/checkout@v5
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filtre
         with:
           # Doit rester identique à la liste « chemins » de deploy-backend.yml.
@@ -73,7 +73,7 @@ jobs:
           -Dsonar.qualitygate.wait=true
       - name: Rapports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rapports-api
           path: |
@@ -102,7 +102,7 @@ jobs:
           DEPOT: ${{ github.repository }}
         run: echo "image=ghcr.io/${DEPOT,,}-${COMPOSANT}" >> "$GITHUB_OUTPUT"
       - name: Construction
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: api/Dockerfile

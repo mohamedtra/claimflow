@@ -30,7 +30,7 @@ jobs:
       frontend: ${{ steps.filtre.outputs.frontend }}
     steps:
       - uses: actions/checkout@v5
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filtre
         with:
           # Doit rester identique à la liste « chemins » de deploy-frontend.yml.
@@ -86,7 +86,7 @@ jobs:
           DEPOT: ${{ github.repository }}
         run: echo "image=ghcr.io/${DEPOT,,}-${COMPOSANT}" >> "$GITHUB_OUTPUT"
       - name: Construction
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: web
           file: web/Dockerfile
