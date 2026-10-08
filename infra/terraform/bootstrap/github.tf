@@ -5,6 +5,10 @@
 #   claimflow-ci-plan  pull requests du dépôt   lecture seule : terraform plan
 #   claimflow-ci-dev   environnement GitHub dev  déploiement de dev (infra et applications)
 # Une pull request ouverte depuis un fork n'obtient pas de jeton OIDC (règle de GitHub).
+#
+# Format du « sub » : depuis le 15/07/2026, GitHub l'écrit avec les identifiants immuables du
+# propriétaire et du dépôt pour tout dépôt créé après cette date (variable sujet_oidc_github).
+# Un dépôt renommé ou supprimé puis recréé sous le même nom n'hérite donc plus de la confiance.
 resource "aws_iam_openid_connect_provider" "github" {
   url            = "https://token.actions.githubusercontent.com"
   client_id_list = ["sts.amazonaws.com"]
@@ -28,7 +32,7 @@ data "aws_iam_policy_document" "confiance_plan" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:mohamedtra@36902772/claimflow@1399766812:pull_request"]
+      values   = ["${var.sujet_oidc_github}:pull_request"]
     }
   }
 }
@@ -53,7 +57,7 @@ data "aws_iam_policy_document" "confiance_dev" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:mohamedtra@36902772/claimflow@1399766812:environment:dev"]
+      values   = ["${var.sujet_oidc_github}:environment:dev"]
     }
   }
 }

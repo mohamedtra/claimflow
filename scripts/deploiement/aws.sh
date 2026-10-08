@@ -19,6 +19,7 @@ echouer() { echo "::error title=$1::$2"; exit 1; }
 url=$(parametre url) || echouer "Environnement introuvable" \
   "Paramètre ${PREFIXE}/url absent : lancer d'abord Actions → Infra → apply."
 echo "url=${url}" >> "${GITHUB_OUTPUT:-/dev/null}"
+echo "::notice title=Adresse de ${ENVIRONNEMENT}::${url}"
 
 attendre_sante() {
   local adresse="$1"
@@ -94,6 +95,8 @@ deployer_api() {
     "deployer.sh a terminé en « $statut ». Voir le groupe « Sortie de deployer.sh »."
 
   attendre_sante "${url}/actuator/health"
+  # Keycloak démarre après l'API (construction au premier lancement) : le sprint 1 en dépend.
+  attendre_sante "${url}/auth/realms/claimflow/.well-known/openid-configuration"
 }
 
 deployer_web() {

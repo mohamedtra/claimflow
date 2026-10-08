@@ -10,6 +10,21 @@ variable "depot_github" {
   default     = "mohamedtra/claimflow"
 }
 
+variable "sujet_oidc_github" {
+  description = <<-EOT
+    Début du « sub » des jetons OIDC du dépôt : repo:<propriétaire>@<id>/<dépôt>@<id> (format immuable,
+    imposé aux dépôts créés après le 15/07/2026). Identifiants : gh api repos/<propriétaire>/<dépôt>
+    --jq '.owner.id, .id'.
+  EOT
+  type        = string
+  default     = "repo:mohamedtra@36902772/claimflow@1399766812"
+
+  validation {
+    condition     = can(regex("^repo:[^@/]+@[0-9]+/[^@/]+@[0-9]+$", var.sujet_oidc_github))
+    error_message = "sujet_oidc_github doit avoir la forme repo:<propriétaire>@<id>/<dépôt>@<id>."
+  }
+}
+
 variable "email_alertes" {
   description = "Adresse qui reçoit les alertes de budget. À renseigner dans terraform.tfvars (non versionné)."
   type        = string

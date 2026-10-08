@@ -86,3 +86,11 @@ en revue, et une nouvelle exception non justifiée fait échouer la CI.
 - Les chemins du BFF (`/bff`, `/oauth2`, `/login`) seront ajoutés à CloudFront et à nginx au sprint 1.
 - Avant la fin du sixième mois, le compte passe en offre payante : sinon AWS suspend le compte. Les
   crédits restants sont conservés.
+
+## Amendement du 08/10/2026
+
+Mise en service le 07/10/2026. Le premier `apply` a échoué sur la confiance OIDC : pour les dépôts
+créés après le 15/07/2026, GitHub écrit le « sub » des jetons avec les identifiants immuables
+(`repo:mohamedtra@36902772/claimflow@1399766812:…`), et non plus `repo:mohamedtra/claimflow:…`.
+La condition des rôles est corrigée (PR #46) puis paramétrée (`sujet_oidc_github`). Effet de bord
+favorable : un dépôt recréé sous le même nom n'obtiendrait plus les rôles AWS.
