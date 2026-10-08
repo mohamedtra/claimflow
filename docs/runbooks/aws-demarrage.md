@@ -248,7 +248,7 @@ Recréer plus tard : étapes G et H. Les données de dev sont perdues, sauf rest
 | Symptôme | Cause probable | Que faire |
 |---|---|---|
 | Infra : « Amorçage AWS manquant » | variables GitHub absentes | étape E |
-| Infra : `AccessDenied` sur `sts:AssumeRoleWithWebIdentity` | job lancé depuis une autre branche que main, ou nom du dépôt différent de `depot_github` | relancer depuis main ; vérifier `terraform.tfvars` de l'amorçage |
+| Infra : `AccessDenied` sur `sts:AssumeRoleWithWebIdentity` | job lancé depuis une autre branche que main, ou « sub » du jeton différent de `sujet_oidc_github` (format immuable `repo:<propriétaire>@<id>/<dépôt>@<id>` depuis le 15/07/2026) | relancer depuis main ; vérifier `sujet_oidc_github` dans l'amorçage, puis `terraform apply` |
 | Deploy backend : « Agent SSM » | instance encore en installation (premier démarrage) | relancer dans 5 minutes |
 | Deploy backend : `manifest unknown` ou `denied` dans la sortie | images encore privées | étape F |
 | `https://…/api/…` répond 403 | requête arrivée sans passer par CloudFront, ou secret d'origine désynchronisé | relancer Deploy backend (il régénère `nginx.conf`) |

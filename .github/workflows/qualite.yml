@@ -5,6 +5,8 @@ name: Qualité commune
 # et dépendances. Les builds du backend et du frontend sont dans leurs propres workflows.
 on:
   pull_request:
+    # « edited » : le titre de la pull request devient le message du commit fusionné (squash).
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
 
@@ -34,6 +36,12 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
         run: npx commitlint --from "$BASE" --to "$HEAD" --verbose
+      # Avec la fusion « squash », c'est le titre de la pull request qui arrive sur main : il suit
+      # les mêmes règles que les commits de la branche.
+      - name: Titre de la pull request
+        env:
+          TITRE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$TITRE" | npx commitlint --verbose
 
   # Le contrat est ce qui permet de déployer l'API et la SPA séparément : tant qu'il reste
   # compatible (oasdiff), une version de la SPA fonctionne avec la version précédente de l'API.

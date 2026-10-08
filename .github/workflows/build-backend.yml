@@ -30,7 +30,7 @@ jobs:
       backend: ${{ steps.filtre.outputs.backend }}
     steps:
       - uses: actions/checkout@v5
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filtre
         with:
           # Doit rester identique à la liste « chemins » de deploy-backend.yml.
@@ -73,7 +73,7 @@ jobs:
           -Dsonar.qualitygate.wait=true
       - name: Rapports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rapports-api
           path: |
@@ -95,14 +95,14 @@ jobs:
       COMPOSANT: api
     steps:
       - uses: actions/checkout@v5
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - name: Nom de l'image
         id: nom
         env:
           DEPOT: ${{ github.repository }}
         run: echo "image=ghcr.io/${DEPOT,,}-${COMPOSANT}" >> "$GITHUB_OUTPUT"
       - name: Construction
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: api/Dockerfile
@@ -124,7 +124,7 @@ jobs:
         run: .github/scripts/annoter-trivy.py trivy-image.json "$COMPOSANT"
       - name: Connexion au registre
         if: github.event_name == 'push'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

@@ -4,4 +4,5 @@ email_alertes = "vous@exemple.fr"
 # Valeurs par défaut, à changer seulement si besoin :
 # region             = "eu-west-3"
 # depot_github       = "mohamedtra/claimflow"
+# sujet_oidc_github  = "repo:mohamedtra@36902772/claimflow@1399766812"
 # budget_mensuel_usd = 50
