@@ -75,6 +75,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: local
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/claimflow
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8180/realms/claimflow/protocol/openid-connect/certs
     ports:
       - "8080:8080"
     depends_on:
