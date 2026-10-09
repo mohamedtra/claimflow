@@ -17,6 +17,8 @@ import org.springframework.security.web.access.AccessDeniedHandler;
  */
 final class ReponsesProblemeSecurite implements AuthenticationEntryPoint, AccessDeniedHandler {
 
+    private static final String CORPS = "{\"type\":\"about:blank\",\"title\":\"%s\",\"status\":%d,\"detail\":\"%s\"}";
+
     private final BearerTokenAuthenticationEntryPoint enteteBearer = new BearerTokenAuthenticationEntryPoint();
 
     @Override
@@ -37,8 +39,6 @@ final class ReponsesProblemeSecurite implements AuthenticationEntryPoint, Access
         reponse.setStatus(statut);
         reponse.setContentType("application/problem+json");
         reponse.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        reponse.getWriter().write("""
-                {"type":"about:blank","title":"%s","status":%d,"detail":"%s"}"""
-            .formatted(titre, statut, detail));
+        reponse.getWriter().write(CORPS.formatted(titre, statut, detail));
     }
 }

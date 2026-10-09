@@ -24,14 +24,17 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableMethodSecurity
 class ConfigurationSecurite {
 
+    // CSRF désactivé volontairement (java:S4502) : l'API n'émet ni cookie ni session et n'accepte
+    // que des jetons Bearer, qu'un site tiers ne peut pas joindre à une requête. La protection CSRF
+    // est portée par le BFF, seul point d'entrée du navigateur (ADR-003).
+    @SuppressWarnings("java:S4502")
     @Bean
-    SecurityFilterChain securiteApi(HttpSecurity http) throws Exception {
+    SecurityFilterChain securiteApi(HttpSecurity http) {
         var reponses = new ReponsesProblemeSecurite();
         var roles = new JwtAuthenticationConverter();
         roles.setJwtGrantedAuthoritiesConverter(new ConvertisseurRolesKeycloak());
 
         return http
-            // Jetons uniquement, ni cookie ni session : pas de CSRF possible ici. Le BFF le porte (ADR-003).
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(a -> a
