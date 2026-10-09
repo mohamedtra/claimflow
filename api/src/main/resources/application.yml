@@ -7,6 +7,13 @@ spring:
     url: ${DB_URL:}
     username: ${DB_USER:}
     password: ${DB_PASSWORD:}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI}
+          jwk-set-uri: ${OIDC_JWK_SET_URI}
+          audiences: claimflow-api
   jpa:
     open-in-view: false
     hibernate:
