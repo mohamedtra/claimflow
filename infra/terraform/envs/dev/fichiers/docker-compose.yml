@@ -70,6 +70,9 @@ services:
       # dev présente le jeu de démonstration fictif ; jamais en rct ni en prod.
       SPRING_FLYWAY_LOCATIONS: classpath:db/migration,classpath:db/demo
       SERVER_FORWARD_HEADERS_STRATEGY: framework
+      # Validation des jetons (ADR-002) : émetteur public, clés lues en interne.
+      OIDC_ISSUER_URI: ${URL_PUBLIQUE:?}/auth/realms/claimflow
+      OIDC_JWK_SET_URI: http://keycloak:8080/auth/realms/claimflow/protocol/openid-connect/certs
     depends_on:
       postgres:
         condition: service_healthy

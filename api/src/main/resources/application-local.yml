@@ -5,6 +5,12 @@ spring:
     url: jdbc:postgresql://localhost:5432/claimflow
     username: claimflow_app
     password: claimflow-app-dev
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/claimflow
+          jwk-set-uri: http://localhost:8180/realms/claimflow/protocol/openid-connect/certs
   flyway:
     user: claimflow
     password: claimflow-dev
