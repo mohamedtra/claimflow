@@ -33,3 +33,13 @@ test-web: ## Lint, contrôle de types et tests de la SPA
 
 lint: ## Contrat d'API et messages de commit
 	npm run lint:api
+
+.PHONY: help up up-app down reset api bff web test test-api test-bff test-web lint
+
+bff: ## Lance le BFF avec le profil local (port 8081)
+	mvn -f bff/pom.xml spring-boot:run -Dspring-boot.run.profiles=local
+
+test: test-api test-bff test-web ## Lance tous les tests
+
+test-bff: ## Tests du BFF (Docker requis)
+	mvn -B -f bff/pom.xml verify

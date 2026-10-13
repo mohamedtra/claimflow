@@ -1,0 +1,25 @@
+# Profil « local » : poste du développeur, avec infra/docker/docker-compose.yml.
+# Valeurs de développement uniquement (init.sql, realm de démonstration).
+server:
+  port: 8081
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/bff
+    username: bff
+    password: bff-dev
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-secret: claimflow-bff-local
+        provider:
+          keycloak:
+            issuer-uri: http://localhost:8180/realms/claimflow
+
+claimflow:
+  bff:
+    adresse-api: http://localhost:8080
+    adresse-spa: http://localhost:5173/
+    cookie-securise: false   # http://localhost
