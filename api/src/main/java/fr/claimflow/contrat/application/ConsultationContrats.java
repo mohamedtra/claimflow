@@ -9,7 +9,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** les contrats qu'un assuré peut consulter aujourd'hui. */
+/** US-04 : les contrats qu'un assuré peut consulter aujourd'hui. */
 @Service
 public class ConsultationContrats {
 

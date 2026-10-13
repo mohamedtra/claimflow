@@ -1,4 +1,3 @@
-// GarantieSouscrite.java
 package fr.claimflow.contrat.domain;
 
 import fr.claimflow.contrat.TypeGarantie;
