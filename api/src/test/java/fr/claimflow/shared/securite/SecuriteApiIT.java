@@ -58,8 +58,8 @@ class SecuriteApiIT {
 
     @Test
     void us03_un_jeton_valide_franchit_la_securite() throws Exception {
-        // La ressource arrive à l'étape 2 : 404, et surtout ni 401 ni 403.
-        mvc.perform(get("/api/v1/contrats").with(assure())).andExpect(status().isNotFound());
+        // Jeton valide : la sécurité laisse passer (ni 401 ni 403).
+        mvc.perform(get("/api/v1/contrats").with(assure())).andExpect(status().isOk());
     }
 
     @Test
