@@ -14,3 +14,9 @@ GRANT CONNECT ON DATABASE claimflow TO claimflow_app;
 -- Base dédiée à Keycloak.
 CREATE ROLE keycloak LOGIN PASSWORD 'keycloak-dev';
 CREATE DATABASE keycloak OWNER keycloak;
+
+-- Base du BFF : sessions et jetons OIDC (ADR-003). Un seul compte : la base ne contient que des
+-- sessions éphémères, sans audit ni données métier.
+CREATE ROLE bff LOGIN PASSWORD 'bff-dev';
+CREATE DATABASE bff OWNER bff;
+REVOKE ALL ON DATABASE bff FROM PUBLIC;
