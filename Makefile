@@ -1,6 +1,6 @@
 COMPOSE := docker compose -f infra/docker/docker-compose.yml
 
-.PHONY: help up up-app down reset api web test test-api test-web lint
+.PHONY: help up up-app down reset api bff web test test-api test-bff test-web lint
 
 help: ## Affiche cette aide
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -20,26 +20,22 @@ reset: ## Arrête tout et supprime les données locales
 api: ## Lance l'API avec le profil local et le jeu de démonstration
 	mvn -f api/pom.xml spring-boot:run -Dspring-boot.run.profiles=local
 
+bff: ## Lance le BFF avec le profil local (port 8081)
+	mvn -f bff/pom.xml spring-boot:run -Dspring-boot.run.profiles=local
+
 web: ## Lance la SPA en mode développement
 	npm --prefix web run dev
 
-test: test-api test-web ## Lance tous les tests
+test: test-api test-bff test-web ## Lance tous les tests
 
 test-api: ## Tests unitaires, d'architecture et d'intégration (Docker requis)
 	mvn -B -f api/pom.xml verify
+
+test-bff: ## Tests du BFF (Docker requis)
+	mvn -B -f bff/pom.xml verify
 
 test-web: ## Lint, contrôle de types et tests de la SPA
 	npm --prefix web run lint && npm --prefix web run type-check && npm --prefix web test
 
 lint: ## Contrat d'API et messages de commit
 	npm run lint:api
-
-.PHONY: help up up-app down reset api bff web test test-api test-bff test-web lint
-
-bff: ## Lance le BFF avec le profil local (port 8081)
-	mvn -f bff/pom.xml spring-boot:run -Dspring-boot.run.profiles=local
-
-test: test-api test-bff test-web ## Lance tous les tests
-
-test-bff: ## Tests du BFF (Docker requis)
-	mvn -B -f bff/pom.xml verify
