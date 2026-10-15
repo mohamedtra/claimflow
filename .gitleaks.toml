@@ -14,4 +14,5 @@ paths = [
   '''api/src/test/resources/db/roles-de-test\.sql''',
   '''bff/src/main/resources/application-local\.yml''',
   '''bff/src/test/resources/application\.properties''',
+  '''infra/keycloak/demo/utilisateurs\.json''',
 ]

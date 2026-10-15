@@ -20,3 +20,4 @@ Une décision n'est jamais réécrite : si elle change, un nouvel ADR la remplac
 | [ADR-013](013-versions-de-la-plateforme.md) | Versions de la plateforme |
 | [ADR-014](014-build-et-deploiement-separes-par-composant.md) | Build automatique et déploiement manuel, séparés par composant |
 | [ADR-015](015-environnement-dev-aws-sobre.md) | Environnement dev sur AWS : sobre, toujours disponible, décrit par Terraform |
+| [ADR-016](016-realm-keycloak-en-configuration-as-code.md) | Realm Keycloak en configuration as code |

@@ -1,0 +1,45 @@
+name: Realm Keycloak
+
+# Applique le realm (ADR-016) sur un Keycloak éphémère, deux fois pour prouver qu'on peut le
+# rejouer, importe les comptes de démonstration et vérifie le résultat. Il ne tourne que si la
+# configuration Keycloak change ; il n'est donc pas obligatoire sur main (un contrôle obligatoire
+# doit exister sur chaque pull request).
+on:
+  pull_request:
+    paths:
+      - 'infra/keycloak/**'
+      - 'infra/docker/docker-compose.yml'
+      - '.github/workflows/keycloak.yml'
+      - '.github/scripts/verifier-realm.sh'
+  push:
+    branches: [main]
+    paths:
+      - 'infra/keycloak/**'
+      - 'infra/docker/docker-compose.yml'
+      - '.github/workflows/keycloak.yml'
+      - '.github/scripts/verifier-realm.sh'
+
+permissions:
+  contents: read
+
+jobs:
+  realm:
+    name: Realm Keycloak · application et vérification
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE: docker compose -f infra/docker/docker-compose.yml
+    steps:
+      - uses: actions/checkout@v5
+      - name: Keycloak éphémère
+        run: $COMPOSE up -d --wait keycloak
+      - name: Application du realm, deux fois
+        run: |
+          $COMPOSE run --rm --no-deps keycloak-config
+          $COMPOSE run --rm --no-deps keycloak-config
+      - name: Comptes de démonstration
+        run: $COMPOSE run --rm --no-deps keycloak-demo
+      - name: Vérifications
+        run: bash .github/scripts/verifier-realm.sh
+      - name: Journaux de Keycloak
+        if: failure()
+        run: $COMPOSE logs keycloak
