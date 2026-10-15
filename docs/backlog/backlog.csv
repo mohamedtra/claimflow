@@ -9,6 +9,8 @@ US-01;EP-02;En tant qu'assuré, je veux me connecter à mon espace afin de suivr
 US-02;EP-02;En tant que collaborateur, je veux me connecter par SSO avec un second facteur afin d'accéder à mon espace de travail;Must;3;Écran 01;R1
 US-03;EP-02;En tant qu'utilisateur, je ne vois que les dossiers de mon périmètre afin que les données restent confidentielles;Must;8;2.9;R1
 EN-07;EP-03;Importer chaque jour les contrats du SI de souscription;Must;5;2.2;R1
+EN-15;EP-02;Créer les comptes des assurés à l'import des contrats et les inviter;Must;3;D1 · EN-07;R1
+US-30;EP-02;En tant qu'assuré, je veux activer mon espace personnel à ma première connexion afin d'accéder à mes contrats et à mes sinistres;Must;5;Écran 01 · D1;R1
 US-04;EP-03;En tant qu'assuré, je veux consulter mes contrats et garanties afin de savoir ce qui est couvert;Must;2;Écran 02;R1
 US-05;EP-03;En tant qu'assuré, je veux déclarer un sinistre en ligne afin d'être indemnisé sans appeler;Must;8;Écran 03 · RG-01, RG-07;R1
 US-06;EP-05;En tant qu'assuré, je veux déposer mes pièces justificatives afin de compléter mon dossier;Must;8;Écran 03 · RG-12;R1

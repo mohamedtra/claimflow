@@ -1,0 +1,177 @@
+# Realm ClaimFlow décrit comme du code (ADR-016). keycloak-config-cli l'applique à chaque démarrage
+# local et en CI (en dev à partir de l'étape 6) : il compare ce fichier à Keycloak et applique la
+# différence. Les valeurs propres à chaque environnement sont des variables d'environnement REALM_*
+# (voir infra/keycloak/README.md) ; une variable absente fait échouer l'application, c'est voulu.
+# Attention : les variables sont remplacées aussi dans les commentaires, n'y écris jamais leur syntaxe.
+realm: claimflow
+displayName: ClaimFlow
+enabled: true
+sslRequired: external
+internationalizationEnabled: true
+supportedLocales: [fr]
+defaultLocale: fr
+
+# Sessions et jetons (ADR-002). L'inactivité SSO est alignée sur la session du BFF.
+accessTokenLifespan: 300
+ssoSessionIdleTimeout: 1800
+ssoSessionMaxLifespan: 36000
+
+# Connexion (décision D1) : le nom d'utilisateur est le numéro de sociétaire, l'e-mail est accepté.
+# Pas d'inscription libre : les comptes sont créés par l'assureur (EN-15).
+registrationAllowed: false
+loginWithEmailAllowed: true
+duplicateEmailsAllowed: false
+editUsernameAllowed: false
+rememberMe: false
+# Décision D3 : seulement là où les e-mails partent vraiment (Mailpit en local).
+resetPasswordAllowed: $(env:REALM_MOT_DE_PASSE_OUBLIE)
+
+# Essais de mot de passe : blocage temporaire après 5 échecs, jusqu'à 15 minutes.
+bruteForceProtected: true
+failureFactor: 5
+waitIncrementSeconds: 60
+maxFailureWaitSeconds: 900
+permanentLockout: false
+
+# Second facteur (décision D2) : code à usage unique de 6 chiffres, renouvelé toutes les 30 s.
+otpPolicyType: totp
+otpPolicyAlgorithm: HmacSHA1
+otpPolicyDigits: 6
+otpPolicyPeriod: 30
+otpPolicyLookAheadWindow: 1
+
+smtpServer:
+  host: "$(env:REALM_SMTP_HOTE)"
+  port: "$(env:REALM_SMTP_PORT)"
+  from: "$(env:REALM_SMTP_EXPEDITEUR)"
+  fromDisplayName: ClaimFlow
+
+# Libellé du champ d'identifiant sur la page de connexion.
+messageBundles:
+  fr:
+    usernameOrEmail: "N° de sociétaire ou e-mail"
+
+roles:
+  realm:
+    - name: ASSURE
+      description: "Assuré : ses dossiers et contrats"
+    - name: PERSONNEL
+      description: "Marqueur : second facteur obligatoire (décision D2). Inclus dans chaque rôle du personnel"
+    - name: GESTIONNAIRE
+      description: "Gestionnaire : instruit son portefeuille"
+      composite: true
+      composites:
+        realm: [PERSONNEL]
+    - name: EXPERT
+      description: "Expert externe : ses missions"
+      composite: true
+      composites:
+        realm: [PERSONNEL]
+    - name: RESPONSABLE
+      description: "Responsable sinistres : valide et pilote son équipe"
+      composite: true
+      composites:
+        realm: [PERSONNEL]
+    - name: ADMIN
+      description: "Administrateur : paramètres et audit"
+      composite: true
+      composites:
+        realm: [PERSONNEL]
+
+# Connexion par le navigateur : session SSO existante, ou identifiant et mot de passe ; puis code à
+# usage unique pour le personnel. Au premier passage, Keycloak fait configurer l'application.
+browserFlow: navigateur claimflow
+authenticationFlows:
+  - alias: navigateur claimflow
+    description: "Session existante, ou formulaire puis second facteur du personnel (D2)"
+    providerId: basic-flow
+    topLevel: true
+    builtIn: false
+    authenticationExecutions:
+      - authenticator: auth-cookie
+        requirement: ALTERNATIVE
+        priority: 10
+        authenticatorFlow: false
+        userSetupAllowed: false
+      - flowAlias: formulaires claimflow
+        requirement: ALTERNATIVE
+        priority: 20
+        authenticatorFlow: true
+        userSetupAllowed: false
+  - alias: formulaires claimflow
+    description: "Identifiant et mot de passe, puis second facteur si le rôle l'exige"
+    providerId: basic-flow
+    topLevel: false
+    builtIn: false
+    authenticationExecutions:
+      - authenticator: auth-username-password-form
+        requirement: REQUIRED
+        priority: 10
+        authenticatorFlow: false
+        userSetupAllowed: false
+      - flowAlias: second facteur du personnel
+        requirement: CONDITIONAL
+        priority: 20
+        authenticatorFlow: true
+        userSetupAllowed: false
+  - alias: second facteur du personnel
+    description: "Code à usage unique pour tout titulaire du rôle PERSONNEL"
+    providerId: basic-flow
+    topLevel: false
+    builtIn: false
+    authenticationExecutions:
+      - authenticator: conditional-user-role
+        authenticatorConfig: role personnel
+        requirement: REQUIRED
+        priority: 10
+        authenticatorFlow: false
+        userSetupAllowed: false
+      - authenticator: auth-otp-form
+        requirement: REQUIRED
+        priority: 20
+        authenticatorFlow: false
+        userSetupAllowed: false
+authenticatorConfig:
+  - alias: role personnel
+    config:
+      condUserRole: PERSONNEL
+      negate: "false"
+
+clients:
+  - clientId: claimflow-bff
+    name: ClaimFlow BFF
+    enabled: true
+    protocol: openid-connect
+    publicClient: false
+    clientAuthenticatorType: client-secret
+    secret: "$(env:REALM_SECRET_BFF)"
+    standardFlowEnabled: true
+    directAccessGrantsEnabled: false
+    implicitFlowEnabled: false
+    serviceAccountsEnabled: false
+    redirectUris:
+      - "$(env:REALM_URL_BFF)/login/oauth2/code/keycloak"
+    webOrigins: ["+"]
+    attributes:
+      pkce.code.challenge.method: S256
+      post.logout.redirect.uris: "$(env:REALM_URL_SPA)/*"
+    protocolMappers:
+      - name: audience-claimflow-api
+        protocol: openid-connect
+        protocolMapper: oidc-audience-mapper
+        consentRequired: false
+        config:
+          included.client.audience: claimflow-api
+          id.token.claim: "false"
+          access.token.claim: "true"
+          introspection.token.claim: "true"
+  # L'API ne se connecte pas : ce client n'existe que pour l'audience des jetons (ADR-002).
+  - clientId: claimflow-api
+    name: ClaimFlow API (audience)
+    enabled: true
+    protocol: openid-connect
+    publicClient: false
+    standardFlowEnabled: false
+    directAccessGrantsEnabled: false
+    implicitFlowEnabled: false
+    serviceAccountsEnabled: false
