@@ -1,0 +1,63 @@
+:host {
+  max-width: 960px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.entete {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.resume {
+  max-width: 420px;
+}
+.resume-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--n-200);
+}
+h2 {
+  font-size: 17px;
+}
+.lien {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.corps {
+  margin: 0;
+  padding: 16px 20px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.pastille {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--n-100);
+  color: var(--n-600);
+}
+.texte {
+  display: flex;
+  flex-direction: column;
+}
+.texte b {
+  font-weight: 500;
+}

@@ -1,0 +1,96 @@
+:host {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.entete {
+  min-height: 64px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 32px;
+  padding: 0 28px;
+  background: var(--white);
+  border-bottom: 1px solid var(--n-200);
+}
+.marque {
+  display: inline-flex;
+  text-decoration: none;
+}
+nav {
+  display: flex;
+  gap: 24px;
+  align-self: stretch;
+}
+nav a {
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid transparent;
+  color: var(--n-600);
+  font-weight: 500;
+  text-decoration: none;
+}
+nav a:hover {
+  color: var(--n-900);
+}
+nav a.actif {
+  color: var(--brand-700);
+  border-bottom-color: var(--brand-600);
+}
+.utilisateur {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-100);
+  color: var(--brand-700);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.nom {
+  font-weight: 500;
+}
+.contenu {
+  flex: 1;
+  padding: 36px 28px 48px;
+}
+.pied {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 24px;
+  padding: 18px 28px;
+  border-top: 1px solid var(--n-200);
+  font-size: 12.5px;
+  color: var(--n-500);
+}
+@media (max-width: 900px) {
+  .entete,
+  .contenu,
+  .pied {
+    padding-inline: 16px;
+  }
+  .entete {
+    padding-top: 12px;
+    column-gap: 16px;
+  }
+  .nom {
+    display: none;
+  }
+  /* La navigation passe sous le logo et le bouton de déconnexion. */
+  nav {
+    order: 3;
+    width: 100%;
+  }
+  nav a {
+    padding: 10px 0 12px;
+  }
+}

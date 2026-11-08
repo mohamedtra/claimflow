@@ -1,0 +1,102 @@
+:host {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+}
+.marque {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 40px;
+  padding: 48px;
+  background: var(--brand-900);
+  color: var(--brand-100);
+}
+.accroche {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 440px;
+}
+.titre {
+  font-family: var(--f-display);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--white);
+  text-wrap: balance;
+}
+.parcours {
+  width: 100%;
+  max-width: 380px;
+}
+.parcours path {
+  fill: none;
+  stroke: var(--brand-500);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 5;
+}
+.parcours text {
+  fill: var(--brand-100);
+  font-size: 11px;
+  font-weight: 600;
+  text-anchor: middle;
+}
+.etape.declare {
+  fill: #3d6fb5;
+}
+.etape.instruction {
+  fill: var(--brand-500);
+}
+.etape.expertise {
+  fill: #8d6fd8;
+}
+.etape.indemnise {
+  fill: var(--amber-500);
+}
+.garanties {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--brand-200);
+}
+.formulaire {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  background: var(--white);
+}
+.carte-connexion {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.carte-connexion > .discret {
+  margin-top: -10px;
+}
+.alerte cf-icone {
+  margin-top: 1px;
+}
+@media (max-width: 900px) {
+  :host {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+  .marque {
+    padding: 20px 16px;
+    gap: 12px;
+  }
+  .accroche,
+  .parcours,
+  .garanties {
+    display: none;
+  }
+  .formulaire {
+    align-items: flex-start;
+    padding: 32px 16px;
+  }
+}

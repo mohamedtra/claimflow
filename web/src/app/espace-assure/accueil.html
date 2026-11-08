@@ -1,0 +1,39 @@
+<div class="entete">
+  <p class="surtitre">{{ aujourdhui }}</p>
+  <h1 data-test="salutation">Bonjour {{ session.prenom() }}</h1>
+</div>
+
+<section class="carte resume" aria-labelledby="titre-contrats">
+  <div class="resume-tete">
+    <h2 id="titre-contrats">Mes contrats</h2>
+    <a routerLink="/contrats" class="lien">
+      Voir le détail
+      <cf-icone nom="chevron" [taille]="15" />
+    </a>
+  </div>
+  @switch (mesContrats.etat()) {
+    @case ('chargement') {
+      <p class="discret corps" role="status">Chargement…</p>
+    }
+    @case ('erreur') {
+      <p class="discret corps" role="alert">Vos contrats n'ont pas pu être chargés.</p>
+    }
+    @default {
+      <ul class="corps">
+        @for (contrat of contratsActifs(); track contrat.id) {
+          <li data-test="contrat-actif">
+            <span class="pastille" aria-hidden="true">
+              <cf-icone [nom]="contrat.type === 'AUTO' ? 'voiture' : 'maison'" />
+            </span>
+            <span class="texte">
+              <b>{{ contrat.libelle }}</b>
+              <span class="mono discret">{{ contrat.numero }}</span>
+            </span>
+          </li>
+        } @empty {
+          <li class="discret">Aucun contrat actif.</li>
+        }
+      </ul>
+    }
+  }
+</section>

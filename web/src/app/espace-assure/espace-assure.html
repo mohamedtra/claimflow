@@ -1,0 +1,19 @@
+<header class="entete">
+  <a routerLink="/" class="marque" aria-label="ClaimFlow, accueil"><cf-logo [taille]="28" /></a>
+  <nav aria-label="Espace assuré">
+    <a routerLink="/" routerLinkActive="actif" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">Accueil</a>
+    <a routerLink="/contrats" routerLinkActive="actif" ariaCurrentWhenActive="page">Mes contrats</a>
+  </nav>
+  <div class="utilisateur">
+    <span class="avatar" aria-hidden="true">{{ session.initiales() }}</span>
+    <span class="nom" data-test="nom-utilisateur">{{ session.utilisateur()?.nom }}</span>
+    <cf-bouton-deconnexion />
+  </div>
+</header>
+<main class="contenu">
+  <router-outlet />
+</main>
+<footer class="pied">
+  <span>© 2026 Mutuelle Azur Assurances · démo ClaimFlow</span>
+  <span>Assistance : 04 65 71 00 00, du lundi au vendredi</span>
+</footer>

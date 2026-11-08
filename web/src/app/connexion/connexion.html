@@ -1,0 +1,46 @@
+<aside class="marque">
+  <cf-logo [surFondSombre]="true" />
+  <div class="accroche">
+    <p class="titre">Chaque sinistre suit un parcours clair, du premier appel au règlement.</p>
+    <p>Déclaration, instruction, expertise et indemnisation réunies dans un seul outil, avec une trace de chaque décision.</p>
+  </div>
+  <svg class="parcours" viewBox="0 0 340 110" aria-hidden="true">
+    <path d="M30 80 C 80 80, 90 40, 125 40 S 200 30, 225 30 S 290 60, 310 62" />
+    <circle cx="30" cy="80" r="7" class="etape declare" />
+    <circle cx="125" cy="40" r="7" class="etape instruction" />
+    <circle cx="225" cy="30" r="7" class="etape expertise" />
+    <circle cx="310" cy="62" r="9" class="etape indemnise" />
+    <text x="30" y="104">Déclaré</text>
+    <text x="125" y="20">Instruction</text>
+    <text x="225" y="12">Expertise</text>
+    <text x="310" y="90">Indemnisé</text>
+  </svg>
+  <p class="garanties">
+    <cf-icone nom="bouclier" [taille]="16" />
+    Connexion sécurisée OpenID Connect · Hébergé en France
+  </p>
+</aside>
+
+<main class="formulaire">
+  <div class="carte-connexion">
+    <h1>Connexion</h1>
+    <p class="discret">Accédez à votre espace ClaimFlow.</p>
+
+    @if (message(); as message) {
+      <div class="alerte" [class]="message.classe" role="alert" data-test="message">
+        <cf-icone nom="alerte" [taille]="18" />
+        <span>{{ message.texte }}</span>
+      </div>
+    }
+
+    <a class="btn btn-primaire btn-grand" [href]="adresseConnexion" data-test="se-connecter">Se connecter</a>
+
+    <div class="alerte alerte-info">
+      <cf-icone nom="cadenas" [taille]="18" />
+      <span>
+        Sur la page sécurisée, saisissez votre <b>n° de sociétaire</b> ou votre <b>adresse e-mail</b>. Collaborateurs :
+        un code à usage unique vous sera aussi demandé.
+      </span>
+    </div>
+  </div>
+</main>

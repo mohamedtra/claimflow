@@ -1,0 +1,103 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.tete {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 20px;
+}
+.pastille {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-100);
+  color: var(--brand-700);
+}
+.titre {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.statut {
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--brand-200);
+  border-radius: var(--r-sm);
+  background: var(--brand-50);
+  color: var(--brand-700);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+}
+.statut.echu {
+  color: var(--n-700);
+  border-color: var(--n-300);
+  background: var(--n-100);
+}
+/* Sur un petit écran, le tableau défile horizontalement plutôt que de déborder. */
+.defilement {
+  overflow-x: auto;
+}
+/* Largeurs fixes : les colonnes s'alignent d'un contrat à l'autre. */
+table {
+  width: 100%;
+  min-width: 460px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.col-garantie {
+  width: 34%;
+}
+.col-vetuste {
+  width: 16%;
+}
+caption {
+  text-align: left;
+  padding: 0 20px 8px;
+}
+th,
+td {
+  padding: 10px 20px;
+  border-top: 1px solid var(--n-200);
+  text-align: left;
+}
+thead th {
+  background: var(--n-50);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--n-500);
+}
+tbody th {
+  font-weight: 500;
+}
+.nombre {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.vide {
+  padding: 0 20px 18px;
+}
+@media (max-width: 600px) {
+  .tete {
+    padding: 16px;
+  }
+  h2 {
+    font-size: 17px;
+  }
+  th,
+  td {
+    padding-inline: 12px;
+  }
+}
