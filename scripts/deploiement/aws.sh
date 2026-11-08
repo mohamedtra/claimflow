@@ -4,12 +4,13 @@
 # (/claimflow/<environnement>/…, écrits par Terraform) : rien n'est codé en dur ici.
 #
 #   aws.sh api   démarre l'instance si besoin, enregistre la version, lance deployer.sh par SSM
+#   aws.sh bff   idem pour le BFF (même instance, même deployer.sh)
 #   aws.sh web   extrait les fichiers de l'image web, les publie dans S3, invalide CloudFront
 #
 # Variables attendues : ENVIRONNEMENT, IMAGE (sans étiquette), SHA (étiquette de l'image), VERSION.
 set -euo pipefail
 
-composant="${1:?api ou web}"
+composant="${1:?api, bff ou web}"
 : "${ENVIRONNEMENT:?}" "${IMAGE:?}" "${SHA:?}" "${VERSION:?}"
 PREFIXE="/claimflow/${ENVIRONNEMENT}"
 
@@ -33,7 +34,8 @@ attendre_sante() {
   echouer "Contrôle de santé" "$adresse ne répond pas après 5 minutes."
 }
 
-deployer_api() {
+# API et BFF tournent sur l'instance : même chemin de déploiement, seule la version enregistrée change.
+deployer_instance() {
   local instance bucket etat statut commande
   instance=$(parametre instance-id)
   bucket=$(parametre bucket-exploitation)
@@ -63,12 +65,12 @@ deployer_api() {
 
   # La version déployée est enregistrée avant le déploiement : un redémarrage de l'instance
   # relance cette version, pas la précédente.
-  aws ssm put-parameter --name "${PREFIXE}/version/api" --type String --value "$SHA" --overwrite >/dev/null
+  aws ssm put-parameter --name "${PREFIXE}/version/${composant}" --type String --value "$SHA" --overwrite >/dev/null
 
   commande=$(aws ssm send-command \
     --instance-ids "$instance" \
     --document-name AWS-RunShellScript \
-    --comment "ClaimFlow api ${VERSION}" \
+    --comment "ClaimFlow ${composant} ${VERSION}" \
     --parameters "$(jq -cn --arg b "$bucket" '{
         commands: [
           "set -e",
@@ -91,13 +93,27 @@ deployer_api() {
   aws ssm get-command-invocation --command-id "$commande" --instance-id "$instance" \
     --query '[StandardOutputContent, StandardErrorContent]' --output text
   echo "::endgroup::"
-  [ "$statut" = Success ] || echouer "Déploiement de l'API" \
+  [ "$statut" = Success ] || echouer "Déploiement (${composant})" \
     "deployer.sh a terminé en « $statut ». Voir le groupe « Sortie de deployer.sh »."
 
   attendre_sante "${url}/actuator/health"
   # Keycloak démarre après l'API (construction au premier lancement) : le sprint 1 en dépend.
   attendre_sante "${url}/auth/realms/claimflow/.well-known/openid-configuration"
   verifier_fermes "${url}/auth/admin" "${url}/auth/realms/master"
+  if [ "$composant" = bff ]; then
+    # Le BFF répond, sans session, comme il doit (ADR-003) : 401 sur ses points et sur l'API, et
+    # départ vers Keycloak pour la connexion.
+    verifier_code 401 "${url}/bff/utilisateur"
+    verifier_code 401 "${url}/api/v1/contrats"
+    verifier_code 302 "${url}/oauth2/authorization/keycloak"
+  fi
+}
+
+verifier_code() {
+  local attendu="$1" adresse="$2" code
+  code=$(curl -s -o /dev/null --max-time 10 -w '%{http_code}' "$adresse")
+  [ "$code" = "$attendu" ] || echouer "Réponse inattendue" "$adresse répond $code au lieu de $attendu."
+  echo "Répond $code : $adresse"
 }
 
 # L'administration de Keycloak ne doit jamais répondre depuis Internet (tunnel SSM uniquement).
@@ -136,7 +152,7 @@ deployer_web() {
 }
 
 case "$composant" in
-  api) deployer_api ;;
+  api | bff) deployer_instance ;;
   web) deployer_web ;;
   *) echouer "Composant inconnu" "$composant" ;;
 esac

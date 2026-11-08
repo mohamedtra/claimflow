@@ -11,5 +11,6 @@ d'administration : la prochaine application écraserait le changement.
 Le personnel (rôle `PERSONNEL`, inclus dans GESTIONNAIRE, EXPERT, RESPONSABLE, ADMIN) doit saisir
 un code à usage unique ; au premier passage, Keycloak fait configurer l'application d'authentification.
 
-`infra/docker/keycloak/claimflow-realm.json` ne sert plus qu'à l'environnement dev sur AWS, jusqu'à
-l'étape 6 du sprint 1, où dev passera lui aussi à keycloak-config-cli.
+En dev sur AWS, le même realm est appliqué à chaque déploiement (`deployer.sh`), avec les adresses
+de CloudFront et sans envoi d'e-mails ; les comptes de démonstration y sont importés aussi. L'ancien
+import au démarrage (`claimflow-realm.json`) a été retiré à l'étape 6 du sprint 1.

@@ -10,6 +10,12 @@ d'architecture argumentés dans [`docs/adr`](docs/adr).
 
 > Toutes les données (assurés, contrats, sinistres) sont **fictives**.
 
+## Démo en ligne
+
+**https://d31zemi5uk15rr.cloudfront.net** : environnement dev sur AWS, arrêté de 23 h à 8 h (heure
+de Paris). Se connecter avec le compte assuré fictif `10004821`, mot de passe `demo`, puis ouvrir
+« Mes contrats ».
+
 ## Démarrer en local
 
 Prérequis : Docker, Java 25, Maven 3.9, Node.js 22.

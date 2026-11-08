@@ -152,14 +152,20 @@ resource "aws_s3_bucket_policy" "exploitation" {
 }
 
 # Configuration de l'instance, relue à chaque déploiement : la modifier ne remplace pas l'instance.
-# Le realm Keycloak est celui de l'environnement local (utilisateurs de démonstration fictifs).
+# Le realm est le même qu'en local et en CI (ADR-016) ; les comptes de démonstration fictifs vont en
+# dev, jamais en rct ni en prod.
 locals {
+  keycloak = "${path.module}/../../../keycloak"
   config = merge(
     {
-      for f in ["docker-compose.yml", "nginx.conf.modele", "init-postgres.sh", "deployer.sh", "sauvegarder.sh"] :
+      for f in ["docker-compose.yml", "nginx.conf.modele", "init-postgres.sh", "deployer.sh", "sauvegarder.sh", "migrer-realm.sh"] :
       f => "${path.module}/fichiers/${f}"
     },
-    { "claimflow-realm.json" = "${path.module}/../../../docker/keycloak/claimflow-realm.json" },
+    {
+      "realm/claimflow.yaml"   = "${local.keycloak}/realm/claimflow.yaml"
+      "demo/utilisateurs.json" = "${local.keycloak}/demo/utilisateurs.json"
+      "demo/importer.sh"       = "${local.keycloak}/demo/importer.sh"
+    },
   )
 }
 

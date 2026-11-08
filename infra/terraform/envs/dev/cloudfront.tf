@@ -85,8 +85,11 @@ data "aws_cloudfront_origin_request_policy" "tout_sauf_host" {
   name = "Managed-AllViewerExceptHostHeader"
 }
 
+# Tout ce qui n'est pas la SPA part vers l'instance. Le navigateur ne parle qu'au BFF (ADR-003) :
+# /bff (session), /oauth2 et /login (connexion OpenID Connect), /api (relayé vers l'API avec le
+# jeton). /auth sert les pages de Keycloak ; /actuator/health, la santé de l'API pour le déploiement.
 locals {
-  chemins_serveur = ["/api/*", "/auth/*", "/actuator/health"]
+  chemins_serveur = ["/api/*", "/bff/*", "/oauth2/*", "/login/*", "/auth/*", "/actuator/health"]
 }
 
 resource "aws_cloudfront_distribution" "principale" {

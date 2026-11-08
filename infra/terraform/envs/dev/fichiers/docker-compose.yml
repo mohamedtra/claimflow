@@ -1,5 +1,9 @@
 # Pile ClaimFlow sur l'instance EC2 (dev). Lancée par deployer.sh avec le fichier .env qu'il génère
-# (mots de passe lus dans SSM, version de l'API, adresse publique). Ne pas lancer à la main.
+# (mots de passe lus dans SSM, versions de l'API et du BFF, adresse publique). Ne pas lancer à la main.
+#
+# Mémoire : l'instance a 2 Gio (t3.small, offre gratuite) et 2 Gio d'échange. Les limites ci-dessous
+# plafonnent chaque service ; les deux outils de configuration de Keycloak ne tournent que pendant
+# un déploiement.
 name: claimflow
 
 x-journaux: &journaux
@@ -32,7 +36,8 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.7.5
     restart: unless-stopped
-    command: ["start", "--import-realm"]
+    # Le realm n'est plus importé au démarrage : keycloak-config l'applique (ADR-016).
+    command: ["start"]
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
@@ -50,12 +55,68 @@ services:
       KC_HEALTH_ENABLED: "true"
     ports:
       - "127.0.0.1:8180:8080"
-    volumes:
-      - ./config/claimflow-realm.json:/opt/keycloak/data/import/claimflow-realm.json:ro
+    # L'image n'a pas curl : Keycloak est prêt quand le realm master répond 200.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/8080
+          && printf 'GET /auth/realms/master HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          && head -1 <&3 | grep -q ' 200'
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
     depends_on:
       postgres:
         condition: service_healthy
-    mem_limit: 768m
+    mem_limit: 640m
+    <<: *journaux
+
+  # Applique le realm (infra/keycloak/realm) à chaque déploiement, puis s'arrête (ADR-016). Les
+  # adresses sont celles de CloudFront : SPA et BFF y partagent la même origine.
+  keycloak-config:
+    image: adorsys/keycloak-config-cli:6.5.1-26.5.5
+    restart: "no"
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080/auth
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?}
+      KEYCLOAK_AVAILABILITYCHECK_ENABLED: "true"
+      KEYCLOAK_AVAILABILITYCHECK_TIMEOUT: 180s
+      IMPORT_FILES_LOCATIONS: /config/*
+      IMPORT_VARSUBSTITUTION_ENABLED: "true"
+      REALM_URL_BFF: ${URL_PUBLIQUE:?}
+      REALM_URL_SPA: ${URL_PUBLIQUE:?}
+      REALM_SECRET_BFF: ${SECRET_CLIENT_BFF:?}
+      # Pas d'envoi d'e-mails en dev (décision D3) : mot de passe oublié désactivé.
+      REALM_SMTP_HOTE: localhost
+      REALM_SMTP_PORT: "25"
+      REALM_SMTP_EXPEDITEUR: ne-pas-repondre@claimflow.test
+      REALM_MOT_DE_PASSE_OUBLIE: "false"
+    volumes:
+      - ./config/realm:/config:ro
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    mem_limit: 384m
+    <<: *journaux
+
+  # Comptes de démonstration fictifs, à identifiants fixes : local et dev seulement (ADR-016).
+  keycloak-demo:
+    image: quay.io/keycloak/keycloak:26.7.5
+    restart: "no"
+    entrypoint: ["/bin/bash", "/demo/importer.sh"]
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080/auth
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?}
+    volumes:
+      - ./config/demo:/demo:ro
+    depends_on:
+      keycloak-config:
+        condition: service_completed_successfully
+    mem_limit: 256m
     <<: *journaux
 
   api:
@@ -76,7 +137,32 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    mem_limit: 640m
+    mem_limit: 512m
+    <<: *journaux
+
+  # Seul point d'entrée du navigateur (ADR-003). Il découvre Keycloak par son adresse publique, la
+  # même que celle écrite dans les jetons : la découverte passe donc par CloudFront et nginx.
+  bff:
+    image: ghcr.io/mohamedtra/claimflow-bff:${VERSION_BFF:-dev}
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/bff
+      DB_USER: bff
+      DB_PASSWORD: ${BFF_DB_PASSWORD:?}
+      OIDC_CLIENT_SECRET: ${SECRET_CLIENT_BFF:?}
+      SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: ${URL_PUBLIQUE:?}/auth/realms/claimflow
+      API_URL: http://api:8080
+      SPA_URL: ${URL_PUBLIQUE:?}/
+    ports:
+      - "127.0.0.1:8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak-config:
+        condition: service_completed_successfully
+      proxy:
+        condition: service_started
+    mem_limit: 448m
     <<: *journaux
 
   proxy:
