@@ -1,0 +1,48 @@
+<header class="tete">
+  <span class="pastille" aria-hidden="true">
+    <cf-icone [nom]="contrat().type === 'AUTO' ? 'voiture' : 'maison'" />
+  </span>
+  <div class="titre">
+    <p class="surtitre">{{ libellesType[contrat().type] }}</p>
+    <h2 [id]="idTitre()">{{ contrat().libelle }}</h2>
+    <p>
+      <span class="mono discret">{{ contrat().numero }}</span>
+      <span class="discret"> · {{ periode() }}</span>
+    </p>
+  </div>
+  <span class="statut" [class.echu]="echu()" data-test="statut">{{ echu() ? 'Échu' : 'Actif' }}</span>
+</header>
+
+@if (contrat().garanties.length) {
+  <div class="defilement">
+    <table>
+      <caption class="surtitre">Garanties souscrites</caption>
+      <colgroup>
+        <col class="col-garantie" />
+        <col />
+        <col />
+        <col class="col-vetuste" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col">Garantie</th>
+          <th scope="col" class="nombre">Plafond</th>
+          <th scope="col" class="nombre">Franchise</th>
+          <th scope="col" class="nombre">Vétusté</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (garantie of contrat().garanties; track garantie.type) {
+          <tr data-test="garantie">
+            <th scope="row">{{ libellesGarantie[garantie.type] }}</th>
+            <td class="nombre">{{ garantie.plafond | montant }}</td>
+            <td class="nombre">{{ garantie.franchise | montant }}</td>
+            <td class="nombre">{{ garantie.tauxVetuste }} %</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+} @else {
+  <p class="discret vide">Aucune garantie enregistrée sur ce contrat.</p>
+}

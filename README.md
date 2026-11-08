@@ -5,7 +5,7 @@ déclaration en ligne, instruction, expertise, indemnisation, acceptation de l'o
 et journal d'audit immuable.
 
 Projet de démonstration construit de bout en bout pour montrer une pratique réelle de
-**Java 25, Spring Boot 4, Spring Security, PostgreSQL et Vue.js 3**, avec des choix
+**Java 25, Spring Boot 4, Spring Security, PostgreSQL et Angular 22**, avec des choix
 d'architecture argumentés dans [`docs/adr`](docs/adr).
 
 > Toutes les données (assurés, contrats, sinistres) sont **fictives**.
@@ -21,7 +21,8 @@ Prérequis : Docker, Java 25, Maven 3.9, Node.js 22.
 ```bash
 make up        # PostgreSQL, Keycloak, stockage objet, Mailpit, ClamAV
 make api       # API Spring Boot sur http://localhost:8080 (profil local, jeu de démo)
-make web       # SPA Vue 3 sur http://localhost:5173
+make bff       # BFF sur http://localhost:8081 : connexion Keycloak, relais vers l'API
+make web       # SPA Angular sur http://localhost:5173 (passe par le BFF : lancer api et bff avant)
 make test      # tous les tests : unitaires, architecture, intégration (Testcontainers), front
 ```
 
@@ -43,7 +44,7 @@ Comptes du realm `claimflow` (mot de passe `demo` pour tous) :
 ```
 api/      Spring Boot 4 + Spring Modulith : un package racine par module métier
 bff/      Backend for Frontend (sprint 1)
-web/      Vue 3 + TypeScript + Vite
+web/      Angular 22 : composants autonomes, signaux, client généré depuis le contrat
 infra/    Docker Compose local, Terraform AWS (release 2)
 docs/     ADR, contrat OpenAPI, backlog, journal, rétrospectives, recette, runbooks
 scripts/  outillage GitHub (labels, import du backlog)

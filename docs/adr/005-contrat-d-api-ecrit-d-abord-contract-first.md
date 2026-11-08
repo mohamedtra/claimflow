@@ -26,3 +26,11 @@ au lieu d'un client produit par OpenAPI Generator : aucun code d'exécution gén
 types, et un client de quelques kilo-octets. La CI régénère les types et échoue s'ils diffèrent de
 ceux du dépôt. Côté Spring, OpenAPI Generator 7.25 produit les interfaces avec les options
 `useSpringBoot4` et `useJackson3`.
+
+## Amendement du 08/11/2026 : SPA en Angular (ADR-017)
+
+Côté SPA, `ng-openapi-gen` remplace `openapi-typescript` et `openapi-fetch` : une fonction par
+opération, appelée par le service `Api` et `HttpClient`. Le code produit va dans `web/src/app/api`, est
+versionné et n'est jamais modifié à la main. La CI le régénère et échoue s'il diffère de celui du
+dépôt, fichiers nouveaux compris. L'adresse du contrat (`servers`) n'est pas utilisée : la SPA appelle
+la même origine (`provideApiConfiguration('')`), où le BFF relaie vers l'API.

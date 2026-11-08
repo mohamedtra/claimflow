@@ -24,7 +24,7 @@ bff: ## Lance le BFF avec le profil local (port 8081)
 	mvn -f bff/pom.xml spring-boot:run -Dspring-boot.run.profiles=local
 
 web: ## Lance la SPA en mode développement
-	npm --prefix web run dev
+	npm --prefix web start
 
 test: test-api test-bff test-web ## Lance tous les tests
 

@@ -57,11 +57,15 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
-      - name: Types TypeScript à jour avec le contrat d'API
+      - name: Client d'API à jour avec le contrat
         run: |
           npm run generate:api
-          git diff --exit-code -- src/api/schema.d.ts \
-            || { echo "::error::src/api/schema.d.ts est obsolète : lancer « npm run generate:api »."; exit 1; }
+          # Fichiers modifiés, supprimés ou nouveaux : git status les voit tous, git diff non.
+          if [ -n "$(git status --porcelain -- src/app/api)" ]; then
+            git status --short -- src/app/api
+            echo "::error::src/app/api est obsolète : lancer « npm run generate:api » et committer le résultat."
+            exit 1
+          fi
       - run: npm run lint
       - run: npm run type-check
       - run: npm test

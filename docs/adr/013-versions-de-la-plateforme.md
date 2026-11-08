@@ -53,3 +53,15 @@ Le scan Trivy des images a détecté des failles critiques :
   jusqu'à ce que Spring Boot l'intègre ;
 - nginx 1.28 et OpenSSL dans l'image du front : passage à nginx 1.30 (branche stable maintenue) et
   application des mises à jour de sécurité Alpine à la construction.
+
+## Amendement du 08/11/2026 : frontend en Angular (ADR-017)
+
+| Brique | Version | Raison |
+|---|---|---|
+| Angular | 22.2 | Dernière version stable ; mise à jour à chaque version majeure |
+| TypeScript | 6.0 | Exigé par Angular 22 (`>= 6.0 < 6.1`) ; `typescript-eslint` l'accepte |
+| Vitest | 5.1 | Lanceur de tests intégré à Angular (`@angular/build:unit-test`) |
+| Node.js | 22 (LTS) | Angular 22 demande au moins la 22.22.3 |
+
+La ligne « Vue / TypeScript / Vite » est remplacée. TypeScript 7 reste écarté : Angular ne
+l'accepte pas encore.

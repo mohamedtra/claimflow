@@ -14,6 +14,7 @@
   --n-700: #3a4b54;
   --n-600: #52646d;
   --n-500: #6b7c85;
+  --n-400: #9aa9b1;
   --n-300: #c9d3d8;
   --n-200: #e1e7ea;
   --n-100: #eff3f5;
@@ -24,11 +25,16 @@
   --success-bg: #e3f3e9;
   --danger: #b42318;
   --danger-bg: #fde8e6;
+  --warning: #8a5a00;
+  --warning-bg: #fdf3dc;
+  --info: #1d4f91;
+  --info-bg: #e8f0fb;
 
   --f-display: 'IBM Plex Sans Condensed', 'Arial Narrow', system-ui, sans-serif;
   --f-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --f-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
 
+  --r-sm: 4px;
   --r-md: 6px;
   --r-lg: 10px;
   --sh-1: 0 1px 2px rgb(21 34 41 / 6%), 0 1px 1px rgb(21 34 41 / 4%);
