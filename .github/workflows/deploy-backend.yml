@@ -1,6 +1,6 @@
 name: Deploy backend
 
-# Déploiement manuel du backend, environnement par environnement (voir _deploiement.yml).
+# Déploiement manuel du backend (API puis BFF), environnement par environnement (voir _deploiement.yml).
 # Actions → Deploy backend → Run workflow : choisir la référence (main, ou un tag de version)
 # et l'environnement. prod attend l'approbation du propriétaire du dépôt.
 on:
@@ -27,4 +27,19 @@ jobs:
       composant: api
       # Doit rester identique au filtre de build-backend.yml.
       chemins: api docs/openapi .github/workflows/build-backend.yml .github/scripts
+      environnement: ${{ inputs.environnement }}
+
+  # Le BFF tourne sur la même instance : déployé après l'API, jamais en même temps qu'elle.
+  bff:
+    name: BFF
+    needs: deploiement
+    uses: ./.github/workflows/_deploiement.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    with:
+      composant: bff
+      # Doit rester identique au filtre « bff » de build-backend.yml.
+      chemins: bff .github/workflows/build-backend.yml .github/scripts
       environnement: ${{ inputs.environnement }}

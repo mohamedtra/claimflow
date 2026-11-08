@@ -9,7 +9,7 @@ on:
   pull_request:
     paths:
       - infra/terraform/**
-      - infra/docker/keycloak/**
+      - infra/keycloak/**
       - .github/workflows/infra.yml
   workflow_dispatch:
     inputs:

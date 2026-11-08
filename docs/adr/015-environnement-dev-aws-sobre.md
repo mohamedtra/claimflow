@@ -94,3 +94,27 @@ créés après le 15/07/2026, GitHub écrit le « sub » des jetons avec les ide
 (`repo:mohamedtra@36902772/claimflow@1399766812:…`), et non plus `repo:mohamedtra/claimflow:…`.
 La condition des rôles est corrigée (PR #46) puis paramétrée (`sujet_oidc_github`). Effet de bord
 favorable : un dépôt recréé sous le même nom n'obtiendrait plus les rôles AWS.
+
+## Amendement du 08/11/2026 : le BFF en dev (étape 6 du sprint 1)
+
+- **Chemins.** CloudFront envoie `/bff`, `/oauth2`, `/login` et `/api` vers l'instance, où nginx les
+  dirige vers le BFF. L'API n'est plus joignable depuis Internet : seul son point de santé reste
+  publié, pour le déploiement (ADR-003).
+- **BFF sur l'instance.** Même instance, même `deployer.sh`. Sa base de sessions est créée de façon
+  idempotente par `deployer.sh` (et non par `init-postgres.sh`, qui ne s'exécute qu'une fois). Il est
+  déployé par Deploy backend, juste après l'API, jamais en même temps qu'elle.
+- **Découverte de Keycloak.** Le BFF lit la configuration de Keycloak à son adresse publique, celle
+  qui figure dans les jetons : la découverte et l'échange des jetons repassent par CloudFront. C'est
+  plus lent de quelques dizaines de millisecondes, et réservé à dev. En prod, le BFF et Keycloak
+  seront dans le même réseau privé, avec des adresses internes.
+- **Realm.** Appliqué par keycloak-config-cli à chaque déploiement (ADR-016), avec les adresses de
+  CloudFront. Comptes de démonstration importés ; « mot de passe oublié » désactivé, faute d'envoi
+  d'e-mails en dev (décision D3). Au passage, le realm importé autrefois au démarrage est supprimé
+  une fois puis recréé (`migrer-realm.sh`, témoin sur le volume de données).
+- **Mémoire.** L'instance reste en t3.small (2 Gio, offre gratuite) ; les limites des conteneurs
+  sont resserrées et les outils de configuration de Keycloak ne tournent que pendant un déploiement.
+  Si la mémoire manque, passer en t3.medium : environ 10 $ de plus par mois, hors offre gratuite.
+- **Recette.** Le workflow Recette dev rejoue le parcours de connexion de Claire dans un vrai
+  navigateur (Playwright) contre l'adresse de dev, et joint les captures au run.
+- **Elastic IP.** Le plan du 08/11 a montré l'adresse supprimée hors Terraform : l'apply l'a recréée
+  et a mis à jour l'origine de CloudFront. Rappel : aucune ressource ne se modifie à la main.

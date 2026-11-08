@@ -160,14 +160,14 @@ gh variable list --repo mohamedtra/claimflow
 gh variable list --repo mohamedtra/claimflow --env dev
 ```
 
-## F. Rendre publiques les deux images
+## F. Rendre publiques les images
 
 L'instance télécharge les images sans identifiants GitHub : aucun jeton n'est stocké sur la machine.
 Les images ne contiennent que le code du dépôt, qui est déjà public.
 
 1. https://github.com/mohamedtra?tab=packages → **claimflow-api** → **Package settings**.
 2. **Danger Zone** → **Change visibility** → **Public** → confirmer en tapant le nom.
-3. Même chose pour **claimflow-web**.
+3. Même chose pour **claimflow-web** et **claimflow-bff** (publiée par le premier build du BFF sur main).
 
 ## G. Créer l'environnement dev
 

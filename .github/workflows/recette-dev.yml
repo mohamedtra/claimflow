@@ -1,0 +1,63 @@
+name: Recette dev
+
+# Parcours réel dans un navigateur contre l'environnement dev déployé : CloudFront, SPA, BFF,
+# Keycloak et API (e2e/, Playwright). À lancer après un déploiement : Actions → Recette dev → Run
+# workflow (depuis main). L'instance est arrêtée de 23 h à 8 h : la lancer en journée.
+# Les captures d'écran et le rapport sont joints au run, même en cas d'échec.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recette-dev
+  cancel-in-progress: false
+
+jobs:
+  recette:
+    name: Parcours de connexion sur dev
+    runs-on: ubuntu-latest
+    # L'environnement dev fournit AWS_ROLE_ARN : l'adresse de dev est lue dans SSM, jamais écrite ici.
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: e2e
+    steps:
+      - uses: actions/checkout@v5
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: eu-west-3
+          role-session-name: claimflow-recette-dev
+      - name: Adresse de dev
+        id: adresse
+        run: |
+          url=$(aws ssm get-parameter --name /claimflow/dev/url --query Parameter.Value --output text)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "::notice title=Adresse de dev::$url"
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Parcours de bout en bout
+        env:
+          E2E_URL: ${{ steps.adresse.outputs.url }}
+        run: npx playwright test
+      - name: Captures et rapport
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: recette-dev
+          path: |
+            e2e/captures/
+            e2e/rapport/
+            e2e/test-results/
+          if-no-files-found: ignore
+          retention-days: 14

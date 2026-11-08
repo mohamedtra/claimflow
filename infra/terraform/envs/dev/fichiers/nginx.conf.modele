@@ -11,6 +11,7 @@ server {
     listen 8080 default_server;
     server_tokens off;
     client_max_body_size 20m;
+    resolver 127.0.0.11 valid=10s ipv6=off;
 
     if ($origine_autorisee = 0) {
         return 403;
@@ -35,8 +36,15 @@ server {
         proxy_buffers 4 256k;
     }
 
-    location /api/ {
-        proxy_pass http://api:8080;
+    # Le navigateur ne parle qu'au BFF (ADR-003) : session (/bff), connexion OpenID Connect
+    # (/oauth2, /login), et l'API, que le BFF relaie avec le jeton de la session. L'adresse du BFF
+    # est résolue à chaque requête (DNS de Docker) : nginx démarre même si le BFF n'est pas encore
+    # là, ce qui arrive au premier déploiement et pendant son redémarrage.
+    location ~ ^/(api|bff|oauth2|login)/ {
+        set $bff http://bff:8080;
+        proxy_pass $bff;
+        proxy_buffer_size 32k;
+        proxy_buffers 8 32k;
     }
 
     location = /actuator/health {
