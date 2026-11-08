@@ -45,6 +45,11 @@ la syntaxe de Spring Boot 3 : `spring-boot-starter-web` devient `spring-boot-sta
 Jackson est en version 3 (`tools.jackson`), `@MockBean` devient `@MockitoBean`, et
 `PostgreSQLContainer` est dans `org.testcontainers.postgresql`.
 
+Côté SPA, **Angular 22** (ADR-017) : composants autonomes, signaux (`signal`, `computed`, `input`),
+syntaxe `@if` / `@for`, application sans zone.js et détection `OnPush`. Ne pas proposer de `NgModule`,
+de `*ngIf` / `*ngFor`, de décorateur `@Input()`, ni d'appel HTTP écrit à la main quand le client
+généré (`src/app/api`) le fournit.
+
 ## Avant de proposer du code
 
 1. Lire l'ADR concerné.

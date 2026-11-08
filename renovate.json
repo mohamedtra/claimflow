@@ -16,9 +16,9 @@
       "allowedVersions": "<19"
     },
     {
-      "description": "ADR-013 : TypeScript 5.9 tant que typescript-eslint et openapi-typescript ne prennent pas en charge les versions suivantes",
+      "description": "ADR-017 : TypeScript dans la plage acceptée par Angular 22 (>= 6.0 < 6.1)",
       "matchPackageNames": ["typescript"],
-      "allowedVersions": "<6"
+      "allowedVersions": "<6.1"
     },
     {
       "description": "nginx : branche stable uniquement (mineure paire) ; les mineures impaires sont la branche de développement",
