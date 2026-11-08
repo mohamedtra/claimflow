@@ -119,15 +119,32 @@ if [ ! -f "$temoin" ]; then
   touch "$temoin"
 fi
 
+# Attend la fin d'un outil qui s'exécute puis s'arrête, et vérifie qu'il a réussi. On lit l'état du
+# conteneur : « docker compose wait » ne trouve pas un conteneur déjà arrêté.
+attendre_outil() {
+  local outil="$1" id etat code
+  for _ in $(seq 1 60); do
+    id=$(compose ps -a -q "$outil")
+    if [ -n "$id" ]; then
+      read -r etat code < <(docker inspect -f '{{.State.Status}} {{.State.ExitCode}}' "$id")
+      if [ "$etat" = exited ]; then
+        [ "$code" = 0 ] && return 0
+        echo "$outil a échoué (code $code). Derniers journaux :" >&2
+        compose logs --tail 60 "$outil" >&2
+        exit 1
+      fi
+    fi
+    sleep 5
+  done
+  echo "$outil n'a pas terminé après 5 minutes. Derniers journaux :" >&2
+  compose logs --tail 60 "$outil" >&2
+  exit 1
+}
+
 # Démarre ou met à jour les services ; keycloak-config et keycloak-demo s'exécutent puis s'arrêtent.
 compose up -d --remove-orphans "${services[@]}"
-for outil in keycloak-config keycloak-demo; do
-  if ! compose wait "$outil" >/dev/null; then
-    echo "$outil a échoué. Derniers journaux :" >&2
-    compose logs --tail 60 "$outil" >&2
-    exit 1
-  fi
-done
+attendre_outil keycloak-config
+attendre_outil keycloak-demo
 journal "realm appliqué"
 
 # Compose ne recrée un conteneur que si sa définition change, pas quand seul le contenu d'un
