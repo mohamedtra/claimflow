@@ -152,6 +152,25 @@ class BffIT {
     }
 
     @Test
+    void us01_session_sans_jeton_utilisable_401_et_session_fermee() throws Exception {
+        // Utilisateur en session, mais plus aucun jeton (comme après un rafraîchissement refusé).
+        var cookieSession = mvc.perform(get("/test/session-sans-jeton").with(authentication(claireConnectee())))
+            .andReturn().getResponse().getCookie(ConfigurationSession.COOKIE);
+        assertThat(cookieSession).as("cookie de session émis par le BFF").isNotNull();
+
+        // 401 net, et non 302 vers Keycloak : la SPA appelle en HTTP et ne peut pas suivre.
+        mvc.perform(get("/api/v1/contrats").cookie(cookieSession))
+            .andExpect(status().isUnauthorized())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.title").value("Session expirée"));
+        assertThat(RECUS.get()).as("rien n'est relayé à l'API").isNull();
+
+        // La session est fermée : le même cookie n'ouvre plus rien.
+        mvc.perform(get("/bff/utilisateur").cookie(cookieSession))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void us01_la_deconnexion_exige_le_jeton_csrf() throws Exception {
         mvc.perform(post("/bff/deconnexion").with(claire()))
             .andExpect(status().isForbidden());
@@ -217,6 +236,14 @@ class BffIT {
             jetons.saveAuthorizedClient(
                 new OAuth2AuthorizedClient(clients.findByRegistrationId("keycloak"), connexion.getName(), jetonAcces),
                 connexion, requete, reponse);
+        }
+
+        /** Comme connecter(), mais sans ranger de jeton : la session n'a plus de jeton utilisable. */
+        @GetMapping("/test/session-sans-jeton")
+        void connecterSansJeton(Authentication connexion, HttpServletRequest requete, HttpServletResponse reponse) {
+            var contexte = SecurityContextHolder.createEmptyContext();
+            contexte.setAuthentication(connexion);
+            new HttpSessionSecurityContextRepository().saveContext(contexte, requete, reponse);
         }
     }
 

@@ -149,8 +149,13 @@ clients:
     directAccessGrantsEnabled: false
     implicitFlowEnabled: false
     serviceAccountsEnabled: false
+    # Retour de Keycloak vers le BFF. Deux adresses en local : le BFF appelé directement (port 8081),
+    # ou à travers le proxy du serveur de développement de la SPA (port 5173), qui garde l'en-tête
+    # Host. En dev et en production, SPA et BFF partagent la même origine : les deux lignes donnent
+    # la même adresse.
     redirectUris:
       - "$(env:REALM_URL_BFF)/login/oauth2/code/keycloak"
+      - "$(env:REALM_URL_SPA)/login/oauth2/code/keycloak"
     webOrigins: ["+"]
     attributes:
       pkce.code.challenge.method: S256
