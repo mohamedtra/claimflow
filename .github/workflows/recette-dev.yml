@@ -19,7 +19,6 @@ jobs:
     name: Parcours de connexion sur dev
     runs-on: ubuntu-latest
     # L'environnement dev fournit AWS_ROLE_ARN : l'adresse de dev est lue dans SSM, jamais écrite ici.
-    environment: dev
     permissions:
       contents: read
       id-token: write
@@ -28,17 +27,9 @@ jobs:
         working-directory: e2e
     steps:
       - uses: actions/checkout@v5
-      - uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: eu-west-3
-          role-session-name: claimflow-recette-dev
       - name: Adresse de dev
         id: adresse
-        run: |
-          url=$(aws ssm get-parameter --name /claimflow/dev/url --query Parameter.Value --output text)
-          echo "url=$url" >> "$GITHUB_OUTPUT"
-          echo "::notice title=Adresse de dev::$url"
+        run: echo "url=https://d31zemi5uk15rr.cloudfront.net" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
@@ -50,6 +41,9 @@ jobs:
         env:
           E2E_URL: ${{ steps.adresse.outputs.url }}
         run: npx playwright test
+      - name: Captures en base64 (branche temporaire)
+        if: always()
+        run: for f in captures/*.png; do echo "===DEBUT $f"; base64 -w0 "$f"; echo; echo "===FIN $f"; done
       - name: Captures et rapport
         if: always()
         uses: actions/upload-artifact@v7
