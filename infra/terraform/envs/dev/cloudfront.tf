@@ -113,21 +113,26 @@ resource "aws_cloudfront_distribution" "principale" {
     origin_access_control_id = aws_cloudfront_origin_access_control.spa.id
   }
 
-  origin {
-    origin_id   = "instance"
-    domain_name = aws_eip.principale.public_dns
+  # En pause (var.en_pause), l'adresse élastique n'existe plus : l'origine « instance » et ses
+  # routes sont retirées, la distribution ne sert plus que la SPA.
+  dynamic "origin" {
+    for_each = aws_eip.principale
+    content {
+      origin_id   = "instance"
+      domain_name = origin.value.public_dns
 
-    custom_origin_config {
-      http_port              = 80
-      https_port             = 443
-      origin_protocol_policy = "http-only"
-      origin_ssl_protocols   = ["TLSv1.2"]
-      origin_read_timeout    = 30
-    }
+      custom_origin_config {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "http-only"
+        origin_ssl_protocols   = ["TLSv1.2"]
+        origin_read_timeout    = 30
+      }
 
-    custom_header {
-      name  = "X-Origine-CloudFront"
-      value = random_password.secret_origine.result
+      custom_header {
+        name  = "X-Origine-CloudFront"
+        value = random_password.secret_origine.result
+      }
     }
   }
 
@@ -147,7 +152,7 @@ resource "aws_cloudfront_distribution" "principale" {
   }
 
   dynamic "ordered_cache_behavior" {
-    for_each = local.chemins_serveur
+    for_each = var.en_pause ? [] : local.chemins_serveur
     content {
       path_pattern             = ordered_cache_behavior.value
       target_origin_id         = "instance"

@@ -34,6 +34,13 @@ variable "arret_nocturne" {
   default     = true
 }
 
+# Pause du 10/11/2026 : repasser à false pour reprendre (docs/runbooks/aws-demarrage.md).
+variable "en_pause" {
+  description = "Pause : instance arrêtée, adresse élastique libérée, planification désactivée, volumes conservés."
+  type        = bool
+  default     = true
+}
+
 variable "heure_arret" {
   description = "Heure d'arrêt de l'instance (Europe/Paris)."
   type        = number
