@@ -180,13 +180,26 @@ resource "aws_volume_attachment" "donnees" {
 }
 
 # Adresse fixe : son nom DNS public sert d'origine à CloudFront et ne change pas quand
-# l'instance est arrêtée la nuit ou remplacée.
+# l'instance est arrêtée la nuit ou remplacée. En pause, elle est libérée : une adresse IPv4
+# est facturée même rattachée à une instance arrêtée. À la reprise, une nouvelle adresse est
+# créée et CloudFront suit son nom DNS.
 resource "aws_eip" "principale" {
+  count  = var.en_pause ? 0 : 1
   domain = "vpc"
   tags   = { Name = local.nom }
 }
 
 resource "aws_eip_association" "principale" {
-  allocation_id = aws_eip.principale.id
+  count         = var.en_pause ? 0 : 1
+  allocation_id = aws_eip.principale[0].id
   instance_id   = aws_instance.principale.id
+}
+
+# En pause : Terraform arrête l'instance et la garde arrêtée à chaque apply. À la reprise, la
+# ressource disparaît sans rien changer à l'instance (suppression sans effet côté EC2) ; elle
+# redémarre avec la planification ou au prochain déploiement.
+resource "aws_ec2_instance_state" "pause" {
+  count       = var.en_pause ? 1 : 0
+  instance_id = aws_instance.principale.id
+  state       = "stopped"
 }

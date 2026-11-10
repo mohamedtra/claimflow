@@ -232,8 +232,19 @@ aws s3 cp "s3://${BUCKET_EXPLOITATION}/sauvegardes/<horodatage>/claimflow.dump" 
   sudo docker exec -i claimflow-postgres-1 pg_restore -U postgres --clean --if-exists -d claimflow
 ```
 
-**Mettre le projet en pause plusieurs semaines** : instance arrêtée, il reste environ 6,50 $ par mois
-(disques et adresse IP). Pour tout supprimer, depuis votre poste :
+**Mettre le projet en pause plusieurs semaines** : variable `en_pause = true` dans
+`infra/terraform/envs/dev/variables.tf`, par pull request, puis **Actions** → **Infra** → **Run workflow**
+(`apply`). Terraform arrête l'instance et la garde arrêtée, libère l'adresse élastique, désactive les
+horaires de démarrage et d'arrêt, et retire les routes serveur de CloudFront (la SPA reste en ligne,
+l'API ne répond plus). Les volumes, les données, les paramètres SSM et les sauvegardes sont conservés :
+il reste environ 3 $ par mois (disques). Ne pas lancer Deploy backend pendant la pause : il démarrerait
+l'instance, que l'apply suivant arrêterait.
+
+**Reprendre** : `en_pause = false` par pull request, puis Infra → `apply`. Une nouvelle adresse élastique
+est créée et CloudFront la suit ; l'instance redémarre avec le prochain horaire (8 h) ou avec Deploy
+backend, qui la démarre s'il la trouve arrêtée.
+
+**Tout supprimer**, depuis votre poste :
 
 ```bash
 cd infra/terraform/envs/dev

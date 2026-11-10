@@ -54,6 +54,7 @@ resource "aws_scheduler_schedule" "instance" {
   description                  = "ClaimFlow ${var.environnement} : ${each.key} de l'instance"
   schedule_expression          = "cron(0 ${each.value.heure} * * ? *)"
   schedule_expression_timezone = "Europe/Paris"
+  state                        = var.en_pause ? "DISABLED" : "ENABLED" # en pause : défini mais inactif
 
   flexible_time_window {
     mode = "OFF"
